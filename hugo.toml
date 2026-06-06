@@ -1,0 +1,15 @@
+baseURL = 'https://zaixrx.github.com/'
+locale = 'en-us'
+title = 'zaixrx blog'
+theme = "nojs"
+
+[menus]
+  [[menus.main]]
+    name = 'Home'
+    pageRef = '/'
+    weight = 1
+
+  [[menus.main]]
+    name = 'Posts'
+    pageRef = '/posts'
+    weight = 2

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+	<channel>
+		<title>zaixrx blog</title>
+		<link>http://localhost:1313/</link>
+		<description>Recent content on zaixrx blog</description>
+		<generator>Hugo</generator>
+		<language>en-us</language>
+		
+		
+		
+		
+			<lastBuildDate>Sat, 06 Jun 2026 00:00:00 +0000</lastBuildDate>
+		
+			<atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+			<item>
+				<title>Cheeseme</title>
+				<link>http://localhost:1313/posts/cheeseme/</link>
+				<pubDate>Sat, 06 Jun 2026 00:00:00 +0000</pubDate>
+				<guid>http://localhost:1313/posts/cheeseme/</guid>
+				<description>&lt;h1 id=&#34;cheesemeorg---full-writeup&#34;&gt;&#xD;&#xA;  cheeseme.org - Full Writeup&#xD;&#xA;  &lt;a href=&#34;#cheesemeorg---full-writeup&#34; class=&#34;anchor&#34;&gt;#&lt;/a&gt;&#xD;&#xA;&lt;/h1&gt;&#xD;&#xA;&lt;h2 id=&#34;1-overview&#34;&gt;&#xD;&#xA;  1. Overview&#xD;&#xA;  &lt;a href=&#34;#1-overview&#34; class=&#34;anchor&#34;&gt;#&lt;/a&gt;&#xD;&#xA;&lt;/h2&gt;&#xD;&#xA;&lt;p&gt;We are given a Java binary &lt;code&gt;challenge.jar&lt;/code&gt;. Opening it in JADX reveals two packages: &lt;code&gt;com.update.ctf&lt;/code&gt; and &lt;code&gt;internal&lt;/code&gt;. The main entry point is the &lt;code&gt;com.update.ctf.Challenge&lt;/code&gt;&lt;/p&gt;&#xA;&lt;p&gt;&lt;figure&gt;&#xD;&#xA;  &lt;img src=&#34;http://localhost:1313/assets/first.png&#34; alt=&#34;overview&#34; /&gt;&#xD;&#xA;  &#xD;&#xA;&lt;/figure&gt;&#xD;&#xA;&lt;/p&gt;&#xA;&lt;p&gt;Looking at the &lt;code&gt;Challenge&lt;/code&gt; class, we find a few interesting details:&lt;/p&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;In the static initializer, it loads a native DLL called &lt;code&gt;challenge_native.dll&lt;/code&gt;, which can be found under &lt;code&gt;Resources/native&lt;/code&gt;.&lt;/li&gt;&#xA;&lt;li&gt;It defines three checker methods: &lt;code&gt;checkPart1&lt;/code&gt;, &lt;code&gt;checkPart2&lt;/code&gt;, and &lt;code&gt;checkPart3&lt;/code&gt;, alongside a lot of string obfuscation and dead code.&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;p&gt;The main validation logic looks like this:&lt;/p&gt;</description>
+			</item>
+	</channel>
+</rss>

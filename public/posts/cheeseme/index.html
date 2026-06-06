@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1, initial-scale = 1.0, shrink-to-fit=no">
+<title>Cheeseme | zaixrx blog</title>
+    <link rel="stylesheet" href="/css/vars.css">
+    <link rel="stylesheet" href="/css/syntax.css">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/nav.css">
+
+
+
+
+</head>
+<body>
+  <header>
+    
+  <nav class="navbar">
+    <p>zaixrx blog</p>
+    <label for="dropdown">
+      <svg height="20" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+        <title>Menu</title>
+        <path d="M96 160C96 142.3 110.3 128 128 128L512 128C529.7 128 544 142.3 544 160C544 177.7 529.7 192 512 192L128 192C110.3 192 96 177.7 96 160zM96 320C96 302.3 110.3 288 128 288L512 288C529.7 288 544 302.3 544 320C544 337.7 529.7 352 512 352L128 352C110.3 352 96 337.7 96 320zM544 480C544 497.7 529.7 512 512 512L128 512C110.3 512 96 497.7 96 480C96 462.3 110.3 448 128 448L512 448C529.7 448 544 462.3 544 480z"/>
+      </svg>
+    </label>
+    <input type="checkbox" id="dropdown" checked/>
+    <ul>
+        <li>
+          <a href="/">Home</a>
+        </li>
+        <li>
+          <a aria-current="page" class="active" href="/posts/">Posts</a>
+        </li>
+    </ul>
+  </nav>
+
+
+  </header>
+  <main>
+    
+  <h1>Cheeseme</h1>
+  
+  <div class="metadata">
+      
+      
+      <time datetime="2026-06-06T00:00:00&#43;00:00">June 6, 2026</time>
+  </div>
+ 
+  <h1 id="cheesemeorg---full-writeup">
+  cheeseme.org - Full Writeup
+  <a href="#cheesemeorg---full-writeup" class="anchor">#</a>
+</h1>
+<h2 id="1-overview">
+  1. Overview
+  <a href="#1-overview" class="anchor">#</a>
+</h2>
+<p>We are given a Java binary <code>challenge.jar</code>. Opening it in JADX reveals two packages: <code>com.update.ctf</code> and <code>internal</code>. The main entry point is the <code>com.update.ctf.Challenge</code></p>
+<p><figure>
+  <img src="/assets/first.png" alt="overview" />
+  
+</figure>
+</p>
+<p>Looking at the <code>Challenge</code> class, we find a few interesting details:</p>
+<ul>
+<li>In the static initializer, it loads a native DLL called <code>challenge_native.dll</code>, which can be found under <code>Resources/native</code>.</li>
+<li>It defines three checker methods: <code>checkPart1</code>, <code>checkPart2</code>, and <code>checkPart3</code>, alongside a lot of string obfuscation and dead code.</li>
+</ul>
+<p>The main validation logic looks like this:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// in com.update.ctf.Challenge</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span>(String<span style="color:#f92672">[]</span> strArr) {
+</span></span><span style="display:flex;"><span>    Caf54bdb423.<span style="color:#a6e22e">dispatch_0</span>(strArr);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// in com.update.ctf.Caf54bdb423</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">dispatch_0</span>(String<span style="color:#f92672">[]</span> args) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (args.<span style="color:#a6e22e">length</span> <span style="color:#f92672">!=</span> 1) {
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">exit</span>(2);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> bytes <span style="color:#f92672">=</span> args<span style="color:#f92672">[</span>0<span style="color:#f92672">]</span>.<span style="color:#a6e22e">getBytes</span>(StandardCharsets.<span style="color:#a6e22e">UTF_8</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (bytes.<span style="color:#a6e22e">length</span> <span style="color:#f92672">==</span> 47 <span style="color:#f92672">&amp;&amp;</span> 
+</span></span><span style="display:flex;"><span>        Challenge.<span style="color:#a6e22e">checkPart1</span>(Arrays.<span style="color:#a6e22e">copyOfRange</span>(bytes, 0, 16)) <span style="color:#f92672">&amp;&amp;</span> 
+</span></span><span style="display:flex;"><span>        Challenge.<span style="color:#a6e22e">checkPart2</span>(Arrays.<span style="color:#a6e22e">copyOfRange</span>(bytes, 16, 32)) <span style="color:#f92672">&amp;&amp;</span> 
+</span></span><span style="display:flex;"><span>        Challenge.<span style="color:#a6e22e">checkPart3</span>(Arrays.<span style="color:#a6e22e">copyOfRange</span>(bytes, 32, 47))) {
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">exit</span>(0);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">exit</span>(1);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>From here we can see the flag length needs to be 47 characters:</p>
+<ul>
+<li><code>0..15</code> is checked by <code>Challenge.checkPart1</code></li>
+<li><code>16..31</code> is checked by <code>Challenge.checkPart2</code></li>
+<li><code>32..46</code> is checked by <code>Challenge.checkPart3</code> (a native function linked to the DLL)</li>
+</ul>
+<hr>
+<h2 id="2-part-1-simple-reversible-obfuscation">
+  2. Part 1: Simple Reversible Obfuscation
+  <a href="#2-part-1-simple-reversible-obfuscation" class="anchor">#</a>
+</h2>
+<p>Starting with <code>checkPart1</code>, after ignoring the bogus code that wraps the core call, we find <code>_s$6d77aa71(byte[] bArr)</code>. This method applies a sequence of bitwise XORs, shifts, and modular additions on the 16-byte input array.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">boolean</span> <span style="color:#a6e22e">_s$6d77aa71</span>(<span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> bArr) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span><span style="color:#f92672">[]</span> iArr <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">int</span><span style="color:#f92672">[</span>16<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> i <span style="color:#f92672">=</span> 137;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">int</span> i2 <span style="color:#f92672">=</span> 0; i2 <span style="color:#f92672">&lt;</span> 16; i2<span style="color:#f92672">++</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> i3 <span style="color:#f92672">=</span> ((bArr<span style="color:#f92672">[</span>i2<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> i) <span style="color:#f92672">^</span> 87) <span style="color:#f92672">&amp;</span> 255;
+</span></span><span style="display:flex;"><span>        iArr<span style="color:#f92672">[</span>i2<span style="color:#f92672">]</span> <span style="color:#f92672">=</span> ((i3 <span style="color:#f92672">&lt;&lt;</span> 1) <span style="color:#f92672">|</span> (i3 <span style="color:#f92672">&gt;&gt;&gt;</span> 7)) <span style="color:#f92672">&amp;</span> 255;
+</span></span><span style="display:flex;"><span>        i <span style="color:#f92672">=</span> (i <span style="color:#f92672">+</span> 23) <span style="color:#f92672">&amp;</span> 255;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// ... further reversible transformations ...</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> ((((((((((((((((0 <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>0<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 167)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>1<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 210)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>2<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 183)) <span style="color:#f92672">|</span> 
+</span></span><span style="display:flex;"><span>           (iArr<span style="color:#f92672">[</span>3<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 213)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>4<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 204)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>5<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 26)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>6<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 54)) <span style="color:#f92672">|</span> 
+</span></span><span style="display:flex;"><span>           (iArr<span style="color:#f92672">[</span>7<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 103)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>8<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 216)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>9<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 169)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>10<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 251)) <span style="color:#f92672">|</span> 
+</span></span><span style="display:flex;"><span>           (iArr<span style="color:#f92672">[</span>11<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 83)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>12<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 72)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>13<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 101)) <span style="color:#f92672">|</span> (iArr<span style="color:#f92672">[</span>14<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 62)) <span style="color:#f92672">|</span> 
+</span></span><span style="display:flex;"><span>           (iArr<span style="color:#f92672">[</span>15<span style="color:#f92672">]</span> <span style="color:#f92672">^</span> 183)) <span style="color:#f92672">==</span> 0;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>Instead of reversing these operations manually, we can simply rewrite the Java logic in Python and let Z3 solve it constraint by constraint:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> z3 <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>bArr <span style="color:#f92672">=</span> [BitVec(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;b</span><span style="color:#e6db74">{</span>i<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;</span>, <span style="color:#ae81ff">8</span>) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>)]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>s <span style="color:#f92672">=</span> Solver()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> b <span style="color:#f92672">in</span> bArr:
+</span></span><span style="display:flex;"><span>    s<span style="color:#f92672">.</span>add(b <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0x20</span>, b <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0x7e</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>iArr <span style="color:#f92672">=</span> [BitVec(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;i</span><span style="color:#e6db74">{</span>i<span style="color:#e6db74">}</span><span style="color:#e6db74">&#39;</span>, <span style="color:#ae81ff">8</span>) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>)]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>i <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">137</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i2 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    i3 <span style="color:#f92672">=</span> (bArr[i2] <span style="color:#f92672">^</span> i) <span style="color:#f92672">^</span> BitVecVal(<span style="color:#ae81ff">87</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>    iArr[i2] <span style="color:#f92672">=</span> RotateLeft(i3, <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>    i <span style="color:#f92672">=</span> i <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">23</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i4 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">16</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i5 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    iArr[i5] <span style="color:#f92672">=</span> iArr[i5] <span style="color:#f92672">+</span> i4
+</span></span><span style="display:flex;"><span>    iArr[i5] <span style="color:#f92672">=</span> RotateLeft(iArr[i5], <span style="color:#ae81ff">2</span>)
+</span></span><span style="display:flex;"><span>    i4 <span style="color:#f92672">=</span> i4 <span style="color:#f92672">+</span> iArr[i5] <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i6 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">11</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i7 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>    iArr[i7] <span style="color:#f92672">=</span> iArr[i7] <span style="color:#f92672">^</span> i6
+</span></span><span style="display:flex;"><span>    i6 <span style="color:#f92672">=</span> i6 <span style="color:#f92672">+</span> iArr[i7] <span style="color:#f92672">+</span> BitVecVal(i7 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i8 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">167</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i9 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    iArr[i9] <span style="color:#f92672">=</span> iArr[i9] <span style="color:#f92672">+</span> i8
+</span></span><span style="display:flex;"><span>    iArr[i9] <span style="color:#f92672">=</span> RotateLeft(iArr[i9], <span style="color:#ae81ff">5</span>)
+</span></span><span style="display:flex;"><span>    i8 <span style="color:#f92672">=</span> i8 <span style="color:#f92672">+</span> iArr[i9] <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">8</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i10 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">220</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i11 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>    iArr[i11] <span style="color:#f92672">=</span> iArr[i11] <span style="color:#f92672">^</span> i10
+</span></span><span style="display:flex;"><span>    i10 <span style="color:#f92672">=</span> i10 <span style="color:#f92672">+</span> iArr[i11] <span style="color:#f92672">+</span> BitVecVal(i11 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i12 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">255</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i13 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    iArr[i13] <span style="color:#f92672">=</span> iArr[i13] <span style="color:#f92672">+</span> i12
+</span></span><span style="display:flex;"><span>    iArr[i13] <span style="color:#f92672">=</span> RotateLeft(iArr[i13], <span style="color:#ae81ff">4</span>)
+</span></span><span style="display:flex;"><span>    i12 <span style="color:#f92672">=</span> i12 <span style="color:#f92672">+</span> iArr[i13] <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">15</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i14 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">131</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i15 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>    iArr[i15] <span style="color:#f92672">=</span> iArr[i15] <span style="color:#f92672">^</span> i14
+</span></span><span style="display:flex;"><span>    i14 <span style="color:#f92672">=</span> i14 <span style="color:#f92672">+</span> iArr[i15] <span style="color:#f92672">+</span> BitVecVal(i15 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i16 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">69</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i17 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    iArr[i17] <span style="color:#f92672">=</span> iArr[i17] <span style="color:#f92672">+</span> i16
+</span></span><span style="display:flex;"><span>    iArr[i17] <span style="color:#f92672">=</span> RotateLeft(iArr[i17], <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>    i16 <span style="color:#f92672">=</span> i16 <span style="color:#f92672">+</span> iArr[i17] <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">22</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i18 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">7</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i19 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>    iArr[i19] <span style="color:#f92672">=</span> iArr[i19] <span style="color:#f92672">^</span> i18
+</span></span><span style="display:flex;"><span>    i18 <span style="color:#f92672">=</span> i18 <span style="color:#f92672">+</span> iArr[i19] <span style="color:#f92672">+</span> BitVecVal(i19 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i20 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">31</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i21 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    iArr[i21] <span style="color:#f92672">=</span> iArr[i21] <span style="color:#f92672">+</span> i20
+</span></span><span style="display:flex;"><span>    iArr[i21] <span style="color:#f92672">=</span> RotateLeft(iArr[i21], <span style="color:#ae81ff">5</span>)
+</span></span><span style="display:flex;"><span>    i20 <span style="color:#f92672">=</span> i20 <span style="color:#f92672">+</span> iArr[i21] <span style="color:#f92672">+</span> BitVecVal(<span style="color:#ae81ff">29</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>i22 <span style="color:#f92672">=</span> BitVecVal(<span style="color:#ae81ff">86</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i23 <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>    iArr[i23] <span style="color:#f92672">=</span> iArr[i23] <span style="color:#f92672">^</span> i22
+</span></span><span style="display:flex;"><span>    i22 <span style="color:#f92672">=</span> i22 <span style="color:#f92672">+</span> iArr[i23] <span style="color:#f92672">+</span> BitVecVal(i23 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>target <span style="color:#f92672">=</span> [<span style="color:#ae81ff">167</span>, <span style="color:#ae81ff">210</span>, <span style="color:#ae81ff">183</span>, <span style="color:#ae81ff">213</span>, <span style="color:#ae81ff">204</span>, <span style="color:#ae81ff">26</span>, <span style="color:#ae81ff">54</span>, <span style="color:#ae81ff">103</span>, <span style="color:#ae81ff">216</span>, <span style="color:#ae81ff">169</span>, <span style="color:#ae81ff">251</span>, <span style="color:#ae81ff">83</span>, <span style="color:#ae81ff">72</span>, <span style="color:#ae81ff">101</span>, <span style="color:#ae81ff">62</span>, <span style="color:#ae81ff">183</span>]
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> idx <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    s<span style="color:#f92672">.</span>add(iArr[idx] <span style="color:#f92672">==</span> BitVecVal(target[idx], <span style="color:#ae81ff">8</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> s<span style="color:#f92672">.</span>check() <span style="color:#f92672">!=</span> sat:
+</span></span><span style="display:flex;"><span>    print(<span style="color:#e6db74">&#34;failed to find solution&#34;</span>)
+</span></span><span style="display:flex;"><span>    exit(<span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>model <span style="color:#f92672">=</span> s<span style="color:#f92672">.</span>model()
+</span></span><span style="display:flex;"><span>result <span style="color:#f92672">=</span> bytes(model[bArr[i]]<span style="color:#f92672">.</span>as_long() <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>))
+</span></span><span style="display:flex;"><span>print(result<span style="color:#f92672">.</span>decode())
+</span></span></code></pre></div><p>Running this gives us the first part of the flag: <strong><code>THEM{h0p3_7h15_7</code></strong></p>
+<hr>
+<h2 id="3-part-2-custom-jit-and-virtual-machine">
+  3. Part 2: Custom JIT and Virtual Machine
+  <a href="#3-part-2-custom-jit-and-virtual-machine" class="anchor">#</a>
+</h2>
+<p>For <code>checkPart2</code>, the execution flow passes to <code>internal.j64mft.obmwy._s7n9c()</code>, which relies on <code>_mh_ex</code>, a <code>MethodHandle</code> that isn&rsquo;t statically defined in the class.</p>
+<p><figure>
+  <img src="/assets/part2_init.png" alt="part2_init" />
+  
+</figure>
+</p>
+<p>Inspecting the static initializer (<code>&lt;clinit&gt;</code>) of <code>obmwy</code> by dumping it&rsquo;s bytecode using cuz for some reason(prolly obfuscation) jadx failed to decompile it we get:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>.<span style="color:#a6e22e">method</span> <span style="color:#66d9ef">static</span> <span style="color:#f92672">&lt;</span>clinit<span style="color:#f92672">&gt;</span>()V
+</span></span><span style="display:flex;"><span>    .<span style="color:#a6e22e">max</span> stack 7
+</span></span><span style="display:flex;"><span>    .<span style="color:#a6e22e">max</span> locals 0
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    invokestatic java<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>invoke<span style="color:#f92672">/</span>MethodHandles <span style="color:#a6e22e">lookup</span> ()Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>invoke<span style="color:#f92672">/</span>MethodHandles$Lookup;
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/bts.bin&#34;</span>
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;internal.j64mft.obmwyxuh&#34;</span>
+</span></span><span style="display:flex;"><span>    bipush 18
+</span></span><span style="display:flex;"><span>    anewarray java<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_0
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;_mh_ex&#34;</span>
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_1
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;_s7n9c&#34;</span>
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_2
+</span></span><span style="display:flex;"><span>    ldc .<span style="color:#a6e22e">methodtype</span> (Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Class;Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>String;Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object;<span style="color:#f92672">[</span>Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object;)Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object;
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_3
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;_mh_cb&#34;</span>
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_4
+</span></span><span style="display:flex;"><span>    ldc <span style="color:#e6db74">&#34;_nzrf&#34;</span>
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    dup
+</span></span><span style="display:flex;"><span>    iconst_5
+</span></span><span style="display:flex;"><span>    ldc .<span style="color:#a6e22e">methodtype</span> (Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object;)Z
+</span></span><span style="display:flex;"><span>    aastore
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// ... (rest of the method entries)</span>
+</span></span><span style="display:flex;"><span>    invokestatic internal<span style="color:#f92672">/</span>j64mft<span style="color:#f92672">/</span>a8xxf <span style="color:#a6e22e">bootAndInstall</span> (Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>invoke<span style="color:#f92672">/</span>MethodHandles$Lookup;Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>String;Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>String;<span style="color:#f92672">[</span>Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Object;)Ljava<span style="color:#f92672">/</span>lang<span style="color:#f92672">/</span>Class;
+</span></span><span style="display:flex;"><span>    pop
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span>
+</span></span><span style="display:flex;"><span>.<span style="color:#a6e22e">end</span> method
+</span></span></code></pre></div><p>what that does is:</p>
+<ol>
+<li>build an Object array of 6 method entries where each entry is a tuple containing:</li>
+</ol>
+<ul>
+<li>method name (e.g &ldquo;_mh_ex&rdquo;, &ldquo;mh_cb&rdquo;, &hellip;)</li>
+<li>method handle (e.g &ldquo;_s7n9c&rdquo;, &ldquo;_nzrf&rdquo;, &hellip;)</li>
+<li>method signature (e.g (Class, String, Object, Object[]) -&gt; Object, &hellip;)</li>
+</ul>
+<ol start="2">
+<li>call <code>internal.j64mft.a8xxf.bootAndInstall</code> passing <code>&quot;ajyiv7/ome04d1e/ff8zoj/bts.bin&quot;</code>, <code>&quot;internal.j64mft.obmwyxuh&quot;</code> and the <code>methodEntries</code> array, seeing this we can directly assume it uses the binary <code>bts.bin</code> to JIT compile/load custom class files under the package <code>internal.j64mft.obmwyxuh</code></li>
+</ol>
+<h3 id="decrypting-the-class-bundle">
+  Decrypting the Class Bundle
+  <a href="#decrypting-the-class-bundle" class="anchor">#</a>
+</h3>
+<p>taking a look at <code>internal.j64mft.a8xxf.bootAndInstall</code> we can see:</p>
+<p><figure>
+  <img src="/assets/part2_loader.png" alt="part2_loader" />
+  
+</figure>
+</p>
+<p>it calls <code>boot(loader, &quot;ajyiv7/ome04d1e/ff8zoj/bts.bin&quot;, &quot;internal.j64mft.obmwyxuh&quot;)</code> that returns a class that it presumably loads from the binary, then install the previously undifined MethodHandles in <code>obmwy</code> to their correponding method handles in the <code>methodEntries</code> array (e.g _mh_ex in obmy gets assaigned _s7n9c in obmwyxuh &ndash; the newly loaded class)</p>
+<p>now what we should do is get the implementation of loaded class <code>obmwyxuh</code> for that we look at <code>boot</code> which does the following:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> binary <span style="color:#f92672">=</span> _msy2fq(lookup.<span style="color:#a6e22e">lookupClass</span>().<span style="color:#a6e22e">getClassLoader</span>(), <span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/bts.bin&#34;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (binary <span style="color:#f92672">==</span> <span style="color:#66d9ef">null</span> <span style="color:#f92672">||</span> binary.<span style="color:#a6e22e">length</span> <span style="color:#f92672">&lt;</span> 28) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">throw</span> <span style="color:#66d9ef">new</span> IllegalStateException(<span style="color:#e6db74">&#34;rt.bin missing or truncated: &#34;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/bts.bin&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> header <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>12<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>System.<span style="color:#a6e22e">arraycopy</span>(binary, 0, header, 0, 12);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> payload <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>binary.<span style="color:#a6e22e">length</span> <span style="color:#f92672">-</span> 12<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>System.<span style="color:#a6e22e">arraycopy</span>(binary, 12, payload, 0, payload.<span style="color:#a6e22e">length</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> key <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>16<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>System.<span style="color:#a6e22e">arraycopy</span>(ajyiv.<span style="color:#a6e22e">_bbav2</span>(<span style="color:#e6db74">&#34;vm-pack-v1&#34;</span>.<span style="color:#a6e22e">getBytes</span>(StandardCharsets.<span style="color:#a6e22e">UTF_8</span>)), 0, key, 0, 16);
+</span></span><span style="display:flex;"><span>Class<span style="color:#f92672">&lt;?&gt;</span> cls <span style="color:#f92672">=</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>Iterator<span style="color:#f92672">&lt;</span>Map.<span style="color:#a6e22e">Entry</span><span style="color:#f92672">&lt;</span>String, <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]&gt;&gt;</span> it <span style="color:#f92672">=</span> _mzcrq6(o2oah.<span style="color:#a6e22e">aesGcmDecrypt</span>(key, header, payload)).<span style="color:#a6e22e">entrySet</span>().<span style="color:#a6e22e">iterator</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> (it.<span style="color:#a6e22e">hasNext</span>()) {
+</span></span><span style="display:flex;"><span>    Class<span style="color:#f92672">&lt;?&gt;</span> clsDefineClass <span style="color:#f92672">=</span> lookup.<span style="color:#a6e22e">defineClass</span>(it.<span style="color:#a6e22e">next</span>().<span style="color:#a6e22e">getValue</span>());
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (clsDefineClass.<span style="color:#a6e22e">getName</span>().<span style="color:#a6e22e">equals</span>(<span style="color:#e6db74">&#34;internal.j64mft.obmwyxuh&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        cls <span style="color:#f92672">=</span> clsDefineClass;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (cls <span style="color:#f92672">==</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">throw</span> <span style="color:#66d9ef">new</span> IllegalStateException(<span style="color:#e6db74">&#34;packed host not found: &#34;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;internal.j64mft.obmwyxuh&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">return</span> cls;
+</span></span></code></pre></div><p>basically it loads the binary which is an encrypted archive containing all class objects, decrypts it, and defines each class it contains returning the one named <code>internal.j64mft.obmwyxuh</code>, here is the script I used to extract all those class objects for further analysis:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#f92672">import</span> java.nio.charset.StandardCharsets;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> java.nio.file.Files;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> java.nio.file.Paths;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> java.lang.reflect.Method;
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> java.io.InputStream;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Dumper</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span>(String<span style="color:#f92672">[]</span> args) <span style="color:#66d9ef">throws</span> Exception {
+</span></span><span style="display:flex;"><span>        InputStream is <span style="color:#f92672">=</span> Dumper.<span style="color:#a6e22e">class</span>.<span style="color:#a6e22e">getClassLoader</span>().<span style="color:#a6e22e">getResourceAsStream</span>(<span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/bts.bin&#34;</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> bts <span style="color:#f92672">=</span> is.<span style="color:#a6e22e">readAllBytes</span>();
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> header <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>12<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">arraycopy</span>(bts, 0, header, 0, 12);
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> payload <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>bts.<span style="color:#a6e22e">length</span> <span style="color:#f92672">-</span> 12<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">arraycopy</span>(bts, 12, payload, 0, payload.<span style="color:#a6e22e">length</span>);
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        Class<span style="color:#f92672">&lt;?&gt;</span> ajyivClass <span style="color:#f92672">=</span> Class.<span style="color:#a6e22e">forName</span>(<span style="color:#e6db74">&#34;internal.j64mft.ajyiv&#34;</span>);
+</span></span><span style="display:flex;"><span>        Method bbav2 <span style="color:#f92672">=</span> ajyivClass.<span style="color:#a6e22e">getDeclaredMethod</span>(<span style="color:#e6db74">&#34;_bbav2&#34;</span>, <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>.<span style="color:#a6e22e">class</span>); bbav2.<span style="color:#a6e22e">setAccessible</span>(<span style="color:#66d9ef">true</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> keyBase <span style="color:#f92672">=</span> (<span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>) bbav2.<span style="color:#a6e22e">invoke</span>(<span style="color:#66d9ef">null</span>, <span style="color:#e6db74">&#34;vm-pack-v1&#34;</span>.<span style="color:#a6e22e">getBytes</span>(StandardCharsets.<span style="color:#a6e22e">UTF_8</span>));
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> key <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>16<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">arraycopy</span>(keyBase, 0, key, 0, 16);
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        Class<span style="color:#f92672">&lt;?&gt;</span> o2oahClass <span style="color:#f92672">=</span> Class.<span style="color:#a6e22e">forName</span>(<span style="color:#e6db74">&#34;internal.j64mft.o2oah&#34;</span>);
+</span></span><span style="display:flex;"><span>        Method aesGcmDecrypt <span style="color:#f92672">=</span> o2oahClass.<span style="color:#a6e22e">getDeclaredMethod</span>(<span style="color:#e6db74">&#34;aesGcmDecrypt&#34;</span>, <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>.<span style="color:#a6e22e">class</span>, <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>.<span style="color:#a6e22e">class</span>, <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>.<span style="color:#a6e22e">class</span>); aesGcmDecrypt.<span style="color:#a6e22e">setAccessible</span>(<span style="color:#66d9ef">true</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> decrypted <span style="color:#f92672">=</span> (<span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>) aesGcmDecrypt.<span style="color:#a6e22e">invoke</span>(<span style="color:#66d9ef">null</span>, key, header, payload);
+</span></span><span style="display:flex;"><span>        
+</span></span><span style="display:flex;"><span>        Files.<span style="color:#a6e22e">write</span>(Paths.<span style="color:#a6e22e">get</span>(<span style="color:#e6db74">&#34;rt.bin&#34;</span>), decrypted);
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">out</span>.<span style="color:#a6e22e">println</span>(<span style="color:#e6db74">&#34;Wrote &#34;</span> <span style="color:#f92672">+</span> decrypted.<span style="color:#a6e22e">length</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34; bytes to .\\rt.bin&#34;</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        java.<span style="color:#a6e22e">nio</span>.<span style="color:#a6e22e">ByteBuffer</span> bb <span style="color:#f92672">=</span> java.<span style="color:#a6e22e">nio</span>.<span style="color:#a6e22e">ByteBuffer</span>.<span style="color:#a6e22e">wrap</span>(decrypted);
+</span></span><span style="display:flex;"><span>        bb.<span style="color:#a6e22e">getInt</span>(); <span style="color:#75715e">// checksum 1246712321</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> size <span style="color:#f92672">=</span> bb.<span style="color:#a6e22e">getInt</span>();
+</span></span><span style="display:flex;"><span>        System.<span style="color:#a6e22e">out</span>.<span style="color:#a6e22e">println</span>(<span style="color:#e6db74">&#34;Total classes: &#34;</span> <span style="color:#f92672">+</span> size);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> (<span style="color:#66d9ef">int</span> i <span style="color:#f92672">=</span> 0; i <span style="color:#f92672">&lt;</span> size; i<span style="color:#f92672">++</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">int</span> nameLen <span style="color:#f92672">=</span> bb.<span style="color:#a6e22e">getShort</span>() <span style="color:#f92672">&amp;</span> 0xFFFF;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> nameBytes <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>nameLen<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>            bb.<span style="color:#a6e22e">get</span>(nameBytes);
+</span></span><span style="display:flex;"><span>            String name <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> String(nameBytes, StandardCharsets.<span style="color:#a6e22e">UTF_8</span>);
+</span></span><span style="display:flex;"><span>            
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">int</span> classLen <span style="color:#f92672">=</span> bb.<span style="color:#a6e22e">getInt</span>();
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span> classBytes <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#66d9ef">byte</span><span style="color:#f92672">[</span>classLen<span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>            bb.<span style="color:#a6e22e">get</span>(classBytes);
+</span></span><span style="display:flex;"><span>            
+</span></span><span style="display:flex;"><span>            String<span style="color:#f92672">[]</span> parts <span style="color:#f92672">=</span> name.<span style="color:#a6e22e">split</span>(<span style="color:#e6db74">&#34;/&#34;</span>);
+</span></span><span style="display:flex;"><span>            String outClassName <span style="color:#f92672">=</span> parts<span style="color:#f92672">[</span>parts.<span style="color:#a6e22e">length</span> <span style="color:#f92672">-</span> 1<span style="color:#f92672">]</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;.class&#34;</span>;
+</span></span><span style="display:flex;"><span>            Files.<span style="color:#a6e22e">write</span>(Paths.<span style="color:#a6e22e">get</span>(outClassName), classBytes);
+</span></span><span style="display:flex;"><span>            System.<span style="color:#a6e22e">out</span>.<span style="color:#a6e22e">println</span>(<span style="color:#e6db74">&#34;Wrote &#34;</span> <span style="color:#f92672">+</span> classLen <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34; bytes to .\\&#34;</span> <span style="color:#f92672">+</span> outClassName);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>which yield the following class files which we add to jadx for further analysis:</p>
+<pre tabindex="0"><code>Wrote 61709 bytes to .\rt.bin
+Total classes: 7
+Wrote 30230 bytes to .\obmwyxuh.class
+Wrote 13816 bytes to .\obmwyxuh$ffl.class
+Wrote 4203 bytes to .\obmwyxuh$zpo.class
+Wrote 1941 bytes to .\obmwyxuh$apw.class
+Wrote 607 bytes to .\obmwyxuh$a42.class
+Wrote 9943 bytes to .\obmwyxuh$hyw.class
+Wrote 727 bytes to .\obmwyxuh$msk.class
+</code></pre><h3 id="the-part-2-custom-vm">
+  The Part 2 Custom VM
+  <a href="#the-part-2-custom-vm" class="anchor">#</a>
+</h3>
+<p>Now that we have successfully decrypted and dumped the class files, the next logical step in our reverse-engineering process is to analyze the <code>obmwyxuh.class</code> file. We know from <code>bootAndInstall</code> that this class contains the real implementation of the previously undefined method handles.</p>
+<p>Opening <code>obmwyxuh.class</code> in our decompiler, we look for the implementations of <code>_s7n9c</code> and <code>_nzrf</code>, which were the handlers mapped for <code>checkPart2</code>. The decompilation reveals:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">final</span> <span style="color:#75715e">/* synthetic */</span> Map<span style="color:#f92672">&lt;</span>String, ffl<span style="color:#f92672">&gt;</span> _fy7aqc <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> ConcurrentHashMap();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#75715e">/* synthetic */</span> Object <span style="color:#a6e22e">_s7n9c</span>(Class<span style="color:#f92672">&lt;?&gt;</span> cls, String str, Object obj, Object<span style="color:#f92672">[]</span> input) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> _fy7aqc.<span style="color:#a6e22e">computeIfAbsent</span>(cls.<span style="color:#a6e22e">getName</span>() <span style="color:#f92672">+</span> <span style="color:#e6db74">&#39;|&#39;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/gmv3/175018dca521bdad4d58.bin&#34;</span>, str2 <span style="color:#f92672">-&gt;</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> _mau4l3(cls, <span style="color:#e6db74">&#34;ajyiv7/ome04d1e/ff8zoj/gmv3/175018dca521bdad4d58.bin&#34;</span>);
+</span></span><span style="display:flex;"><span>    }).<span style="color:#a6e22e">_mafig8</span>(cls, <span style="color:#66d9ef">null</span>, input);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> <span style="color:#75715e">/* synthetic */</span> <span style="color:#66d9ef">boolean</span> <span style="color:#a6e22e">_nzrf</span>(Object obj) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (obj <span style="color:#66d9ef">instanceof</span> Boolean) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> ((Boolean) obj).<span style="color:#a6e22e">booleanValue</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (obj <span style="color:#66d9ef">instanceof</span> Number) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> ((Number) obj).<span style="color:#a6e22e">intValue</span>() <span style="color:#f92672">!=</span> 0;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">throw</span> <span style="color:#66d9ef">new</span> ClassCastException(<span style="color:#e6db74">&#34;tx625832&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>As seen in <code>_s7n9c</code>, if the method hasn&rsquo;t been cached in <code>_fy7aqc</code>, it first reads <code>ajyiv7/ome04d1e/ff8zoj/gmv3/175018dca521bdad4d58.bin</code> by calling <code>_mau4l3</code>.</p>
+<p><figure>
+  <img src="/assets/part2_custom_vm.png" alt="custom_vm" />
+  
+</figure>
+</p>
+<p>the <code>_mau4l3</code> method acts as a parser/loader for this binary file. It reads various sections such as constants (<code>_fk60s7</code>), exception handlers (<code>_faap7d</code>), and most importantly, bytecode instructions, initializing them as an array of <code>a42</code> objects (<code>_fapwvn</code>). It packages all this into an instance of the inner class <code>ffl</code> and returns it.</p>
+<p>Once the <code>ffl</code> object is created and cached, <code>_s7n9c</code> immediately invokes <code>ffl._mafig8(cls, null, input)</code>, passing the input (the second chunk of the flag) to it.</p>
+<p>If we examine <code>obmwyxuh$ffl._mafig8</code> in the decompiled code, we find a classic Virtual Machine interpreter loop:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span>hyw hywVar <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> hyw(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_fwau0n</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_fafgs3</span>);
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// ... [loads arguments into hywVar] ...</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">while</span> (hywVar.<span style="color:#a6e22e">_fqzgw7</span> <span style="color:#f92672">&gt;=</span> 0 <span style="color:#f92672">&amp;&amp;</span> hywVar.<span style="color:#a6e22e">_fqzgw7</span> <span style="color:#f92672">&lt;</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_fapwvn</span>.<span style="color:#a6e22e">length</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// ...</span>
+</span></span><span style="display:flex;"><span>    a42 a42Var <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_fapwvn</span><span style="color:#f92672">[</span>hywVar.<span style="color:#a6e22e">_fqzgw7</span><span style="color:#f92672">]</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// ...</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">switch</span> (((a42Var.<span style="color:#a6e22e">_fa9yk8</span> <span style="color:#f92672">*</span> 1247066437) <span style="color:#f92672">^</span> 2095681396) <span style="color:#f92672">&amp;</span> 255) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> 1:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> hywVar.<span style="color:#a6e22e">_mla67o</span>(a42Var.<span style="color:#a6e22e">_fango5</span><span style="color:#f92672">[</span>0<span style="color:#f92672">]</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> 5:
+</span></span><span style="display:flex;"><span>            hywVar.<span style="color:#a6e22e">_msxy4c</span>(hywVar.<span style="color:#a6e22e">_mqkeq7</span>() <span style="color:#f92672">^</span> hywVar.<span style="color:#a6e22e">_mqkeq7</span>());
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> 7:
+</span></span><span style="display:flex;"><span>            hywVar.<span style="color:#a6e22e">_mszhjd</span>(hywVar.<span style="color:#a6e22e">_moh9cy</span>(a42Var.<span style="color:#a6e22e">_fango5</span><span style="color:#f92672">[</span>0<span style="color:#f92672">]</span>) <span style="color:#f92672">&amp;</span> ((Integer) <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_fk60s7</span><span style="color:#f92672">[</span>a42Var.<span style="color:#a6e22e">_fango5</span><span style="color:#f92672">[</span>1<span style="color:#f92672">]]</span>).<span style="color:#a6e22e">intValue</span>());
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// ... [over 200 cases representing various VM opcodes] ...</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    hywVar.<span style="color:#a6e22e">_fqzgw7</span><span style="color:#f92672">++</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This reveals that the <code>ffl</code> class is a custom virtual machine evaluating the second chunk of the flag. The <code>hyw</code> class is the VM context (acting as the operand stack and local variables), and the huge <code>switch</code> statement dispatches the opcodes parsed from the <code>.bin</code> file.</p>
+<p>To understand the flag validation logic, I traced the VM execution of the instructions loaded from <code>175018dca521bdad4d58.bin</code>. The VM implements 5 rounds of transformations. Each round consists of forward and backward passes over the 16-byte state array. The passes mix the array through:</p>
+<ul>
+<li>Rotations (using a custom <code>rotr</code>/<code>rotl</code> bitwise shift on 8 bits)</li>
+<li>Modular additions</li>
+<li>XOR operations</li>
+</ul>
+<p>These operations use a hardcoded array of constants (<code>CTES</code>). Because all the operations are perfectly reversible, we can write a direct solver in Python that implements the inverse functions (<code>inv_bwd</code> and <code>inv_fwd</code>) and runs the rounds in reverse:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>CTES <span style="color:#f92672">=</span> [<span style="color:#ae81ff">16</span>, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">182</span>, <span style="color:#ae81ff">26</span>, <span style="color:#ae81ff">255</span>, <span style="color:#ae81ff">3</span>, <span style="color:#ae81ff">5</span>, <span style="color:#ae81ff">20</span>, <span style="color:#ae81ff">157</span>, <span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">6</span>, <span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">21</span>, <span style="color:#ae81ff">15</span>, <span style="color:#ae81ff">105</span>, <span style="color:#ae81ff">4</span>, <span style="color:#ae81ff">8</span>, <span style="color:#ae81ff">94</span>, <span style="color:#ae81ff">227</span>, <span style="color:#ae81ff">223</span>, <span style="color:#ae81ff">237</span>, <span style="color:#ae81ff">22</span>, <span style="color:#ae81ff">42</span>, <span style="color:#ae81ff">35</span>, <span style="color:#ae81ff">29</span>, <span style="color:#ae81ff">61</span>, <span style="color:#ae81ff">185</span>, <span style="color:#ae81ff">221</span>, <span style="color:#ae81ff">253</span>, <span style="color:#ae81ff">73</span>, <span style="color:#ae81ff">130</span>, <span style="color:#ae81ff">201</span>, <span style="color:#ae81ff">138</span>, <span style="color:#ae81ff">7</span>, <span style="color:#ae81ff">18</span>, <span style="color:#ae81ff">9</span>, <span style="color:#ae81ff">184</span>, <span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">100</span>, <span style="color:#ae81ff">11</span>, <span style="color:#ae81ff">74</span>, <span style="color:#ae81ff">12</span>, <span style="color:#ae81ff">13</span>, <span style="color:#ae81ff">14</span>, <span style="color:#ae81ff">86</span>, <span style="color:#ae81ff">178</span>]
+</span></span><span style="display:flex;"><span>TARGET <span style="color:#f92672">=</span> [<span style="color:#ae81ff">185</span>, <span style="color:#ae81ff">221</span>, <span style="color:#ae81ff">253</span>, <span style="color:#ae81ff">73</span>, <span style="color:#ae81ff">130</span>, <span style="color:#ae81ff">201</span>, <span style="color:#ae81ff">138</span>, <span style="color:#ae81ff">18</span>, <span style="color:#ae81ff">61</span>, <span style="color:#ae81ff">184</span>, <span style="color:#ae81ff">100</span>, <span style="color:#ae81ff">74</span>, <span style="color:#ae81ff">5</span>, <span style="color:#ae81ff">13</span>, <span style="color:#ae81ff">86</span>, <span style="color:#ae81ff">178</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ROUNDS <span style="color:#f92672">=</span> [
+</span></span><span style="display:flex;"><span>    ((CTES[<span style="color:#ae81ff">8</span>], CTES[<span style="color:#ae81ff">9</span>], CTES[<span style="color:#ae81ff">10</span>], CTES[<span style="color:#ae81ff">11</span>]), CTES[<span style="color:#ae81ff">12</span>]),
+</span></span><span style="display:flex;"><span>    ((CTES[<span style="color:#ae81ff">14</span>], CTES[<span style="color:#ae81ff">15</span>], CTES[<span style="color:#ae81ff">15</span>], CTES[<span style="color:#ae81ff">16</span>]), CTES[<span style="color:#ae81ff">17</span>]),
+</span></span><span style="display:flex;"><span>    ((CTES[<span style="color:#ae81ff">18</span>], CTES[<span style="color:#ae81ff">10</span>], CTES[<span style="color:#ae81ff">9</span>], CTES[<span style="color:#ae81ff">13</span>]), CTES[<span style="color:#ae81ff">19</span>]),
+</span></span><span style="display:flex;"><span>    ((CTES[<span style="color:#ae81ff">20</span>], CTES[<span style="color:#ae81ff">15</span>], CTES[<span style="color:#ae81ff">15</span>], CTES[<span style="color:#ae81ff">21</span>]), CTES[<span style="color:#ae81ff">22</span>]),
+</span></span><span style="display:flex;"><span>    ((CTES[<span style="color:#ae81ff">23</span>], CTES[<span style="color:#ae81ff">6</span>], CTES[<span style="color:#ae81ff">5</span>], CTES[<span style="color:#ae81ff">24</span>]), CTES[<span style="color:#ae81ff">25</span>]),
+</span></span><span style="display:flex;"><span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">rotr</span>(v, n):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> (((v <span style="color:#f92672">&lt;&lt;</span> (n <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">7</span>)) <span style="color:#f92672">|</span> (v <span style="color:#f92672">&gt;&gt;</span> (<span style="color:#ae81ff">8</span> <span style="color:#f92672">-</span> (n <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">7</span>)))) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>) <span style="color:#66d9ef">if</span> (n <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">7</span>) <span style="color:#66d9ef">else</span> v <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">inv_fwd</span>(s, a, rl, add):
+</span></span><span style="display:flex;"><span>    s, acc <span style="color:#f92672">=</span> list(s), a
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>        orig <span style="color:#f92672">=</span> (rotr(s[i], rl) <span style="color:#f92672">-</span> acc) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>        acc <span style="color:#f92672">=</span> (acc <span style="color:#f92672">+</span> s[i] <span style="color:#f92672">+</span> add) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>        s[i] <span style="color:#f92672">=</span> orig
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> s
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">inv_bwd</span>(s, a):
+</span></span><span style="display:flex;"><span>    s, acc <span style="color:#f92672">=</span> list(s), a
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">15</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>, <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>):
+</span></span><span style="display:flex;"><span>        out_i <span style="color:#f92672">=</span> s[i]
+</span></span><span style="display:flex;"><span>        s[i] <span style="color:#f92672">=</span> (out_i <span style="color:#f92672">^</span> acc) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>        acc <span style="color:#f92672">=</span> (acc <span style="color:#f92672">+</span> out_i <span style="color:#f92672">+</span> i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> s
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>s <span style="color:#f92672">=</span> list(TARGET)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> (a, rl, rr, add), ba <span style="color:#f92672">in</span> reversed(ROUNDS):
+</span></span><span style="display:flex;"><span>    s <span style="color:#f92672">=</span> inv_bwd(s, ba)
+</span></span><span style="display:flex;"><span>    s <span style="color:#f92672">=</span> inv_fwd(s, a, rl, add)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>flag <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>key <span style="color:#f92672">=</span> CTES[<span style="color:#ae81ff">2</span>]
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">16</span>):
+</span></span><span style="display:flex;"><span>    flag<span style="color:#f92672">.</span>append((rotr(s[i], CTES[<span style="color:#ae81ff">5</span>]) <span style="color:#f92672">^</span> key <span style="color:#f92672">^</span> CTES[<span style="color:#ae81ff">3</span>]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>)
+</span></span><span style="display:flex;"><span>    key <span style="color:#f92672">=</span> (key <span style="color:#f92672">+</span> CTES[<span style="color:#ae81ff">7</span>]) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xFF</span>
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#34;Part 2:&#34;</span>, <span style="color:#e6db74">&#34;&#34;</span><span style="color:#f92672">.</span>join(chr(b) <span style="color:#66d9ef">for</span> b <span style="color:#f92672">in</span> flag))
+</span></span></code></pre></div><p>Running this solver yields the second part: <strong><code>1m3_7h3_1nfr4_15</code></strong></p>
+<h2 id="4-part-3-native-dll">
+  4. Part 3: Native DLL
+  <a href="#4-part-3-native-dll" class="anchor">#</a>
+</h2>
+<p>The last 15 bytes are checked by:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">static</span> <span style="color:#66d9ef">native</span> <span style="color:#66d9ef">boolean</span> <span style="color:#a6e22e">checkPart3</span>(<span style="color:#66d9ef">byte</span><span style="color:#f92672">[]</span>);
+</span></span></code></pre></div><p>The DLL registers the native method through <code>JNI_OnLoad</code>. After importing a <a href="https://gist.githubusercontent.com/Jinmo/048776db75067dcd6c57f1154e65b868/raw/89af26807eaa8bb31e35da63e102b0abfa311580/jni_all.h">jni.h</a> header which was a fucking life saver, here:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>uint <span style="color:#a6e22e">JNI_OnLoad</span>(JavaVM <span style="color:#f92672">*</span>vm) {
+</span></span><span style="display:flex;"><span>    JNIEnv <span style="color:#f92672">*</span>env <span style="color:#f92672">=</span> NULL;
+</span></span><span style="display:flex;"><span>    (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>vm)<span style="color:#f92672">-&gt;</span>GetEnv)(vm, <span style="color:#f92672">&amp;</span>env, JNI_VERSION_1_6);
+</span></span><span style="display:flex;"><span>    jclass clazz <span style="color:#f92672">=</span> (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>env)<span style="color:#f92672">-&gt;</span>FindClass)(env, <span style="color:#e6db74">&#34;com/update/ctf/Challenge&#34;</span>);
+</span></span><span style="display:flex;"><span>    (<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span>env)<span style="color:#f92672">-&gt;</span>RegisterNatives)(env, clazz, <span style="color:#f92672">&amp;</span>nativeMethod, <span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>The <code>JNINativeMethod</code> struct at <code>0x202804030</code> maps:</p>
+<pre tabindex="0"><code>checkPart3([B)Z  -&gt;  0x202801390
+</code></pre><p>That function only jumps into the real checker:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x202801390:  <span style="color:#a6e22e">JMP</span>  <span style="color:#ae81ff">0x2028b7800</span>
+</span></span></code></pre></div><p>The native checker is another VM. Following the thunk at <code>0x2028B7800</code>, it loads three key addresses into registers before jumping to the main prologue:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">2028</span>b7800:  <span style="color:#a6e22e">LEA</span>  <span style="color:#66d9ef">R10</span>, [<span style="color:#ae81ff">0x2028B9000</span>]    <span style="color:#75715e">; bytecode stream
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">2028</span>b7807:  <span style="color:#a6e22e">LEA</span>  <span style="color:#66d9ef">R11</span>, [<span style="color:#ae81ff">0x2028B7000</span>]    <span style="color:#75715e">; handler table (256 QWORDs)
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">2028</span>b780e:  <span style="color:#a6e22e">LEA</span>  <span style="color:#66d9ef">RAX</span>, [<span style="color:#ae81ff">0x202820000</span>]    <span style="color:#75715e">; dispatcher function
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">2028</span>b7815:  <span style="color:#a6e22e">JMP</span>  <span style="color:#ae81ff">0x2028AF217</span>           <span style="color:#75715e">; prologue
+</span></span></span></code></pre></div><p>A useful 15-byte constant appears in <code>.rdata</code> at <code>0x202804048</code>, immediately after the <code>JNINativeMethod</code> struct:</p>
+<pre tabindex="0"><code>4d 3f c7 f5 3b 16 75 48 91 ab 67 ed 06 22 f4
+</code></pre><p>This length matches the missing suffix length exactly 15 bytes, so in case the transformation doesn&rsquo;t change the size of the input, it could probably be a comparison target.</p>
+<h3 id="prologue-and-vm-state-setup">
+  Prologue and VM State Setup
+  <a href="#prologue-and-vm-state-setup" class="anchor">#</a>
+</h3>
+<p>the prologue at <code>0x2028AF217</code> sets up the main VM state. It allocates a large chunk of memory and sets <code>R12</code> as the base pointer for the VM&rsquo;s internal context (which holds the virtual registers, flags, and configuration).</p>
+<p>it also dervies a byte key that&rsquo;s used later to decrypt bytecode:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#75715e">; Compute image base via RIP-relative addressing
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">LEA</span>  <span style="color:#66d9ef">RCX</span>, [<span style="color:#66d9ef">RIP</span>]              <span style="color:#75715e">; RCX = current PC
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOV</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#ae81ff">0xAF59B</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">SUB</span>  <span style="color:#66d9ef">RCX</span>, <span style="color:#66d9ef">R8</span>                 <span style="color:#75715e">; RCX = image base (PE_BASE)
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">; Derive key from bytecode/handler table offsets
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOV</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#66d9ef">R10</span>                <span style="color:#75715e">; R10 = bytecode VA
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">SUB</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#66d9ef">RCX</span>                <span style="color:#75715e">; R8  = bytecode RVA = 0xB9000
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOV</span>  <span style="color:#66d9ef">RAX</span>, <span style="color:#66d9ef">R11</span>                <span style="color:#75715e">; R11 = handler table VA
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">SUB</span>  <span style="color:#66d9ef">RAX</span>, <span style="color:#66d9ef">RCX</span>                <span style="color:#75715e">; RAX = handler table RVA = 0xB7000
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">SHL</span>  <span style="color:#66d9ef">RAX</span>, <span style="color:#ae81ff">0x20</span>               <span style="color:#75715e">; shift to upper 32 bits
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">XOR</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#66d9ef">RAX</span>                <span style="color:#75715e">; combine
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">XOR</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#ae81ff">0x18F8A05A733562A1</span> <span style="color:#75715e">; constant mix
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">ROL</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#ae81ff">0x11</span>               <span style="color:#75715e">; rotate left 17
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">XOR</span>  <span style="color:#66d9ef">R8</span>,  <span style="color:#ae81ff">0xD6E8FEB86659FD93</span> <span style="color:#75715e">; R8 = 0x74
+</span></span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOVZX</span> <span style="color:#66d9ef">R8</span>, <span style="color:#66d9ef">R8B</span>                <span style="color:#75715e">; zero-extend to byte = 0x74
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOV</span>  <span style="color:#66d9ef">RAX</span>, <span style="color:#ae81ff">0x0101010101010101</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">IMUL</span> <span style="color:#66d9ef">R8</span>,  <span style="color:#66d9ef">RAX</span>                <span style="color:#75715e">; replicate across QWORD
+</span></span></span><span style="display:flex;"><span><span style="color:#a6e22e">MOV</span>  [<span style="color:#66d9ef">R12</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#ae81ff">0x19A8</span>], <span style="color:#66d9ef">R8</span>        <span style="color:#75715e">; Store 0x7474747474747474 in VM state
+</span></span></span></code></pre></div><h3 id="tracing-the-native-vm">
+  Tracing the Native VM
+  <a href="#tracing-the-native-vm" class="anchor">#</a>
+</h3>
+<p>With the VM state initialized, execution enters the main dispatcher loop at <code>0x202820087</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x202820087: <span style="color:#a6e22e">MOV</span> <span style="color:#66d9ef">EAX</span>, <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x20282008C: <span style="color:#a6e22e">MOV</span> <span style="color:#66d9ef">AL</span>, <span style="color:#66d9ef">byte</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">RSI</span>]       <span style="color:#75715e">; fetch opcode byte
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x20282008E: <span style="color:#a6e22e">INC</span> <span style="color:#66d9ef">RSI</span>                      <span style="color:#75715e">; skip opcode
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x202820091: <span style="color:#a6e22e">INC</span> <span style="color:#66d9ef">RSI</span>                      <span style="color:#75715e">; skip operand
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x202820094: <span style="color:#a6e22e">CMP</span> <span style="color:#66d9ef">EAX</span>, <span style="color:#ae81ff">0x100</span>
+</span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x202820099: <span style="color:#a6e22e">JNC</span> <span style="color:#66d9ef">ud2</span>                      <span style="color:#75715e">; crash on invalid opcode
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x20282009F: <span style="color:#a6e22e">MOV</span> <span style="color:#66d9ef">R11</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">R12</span>]     <span style="color:#75715e">; reload handler table pointer
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x2028200A3: <span style="color:#a6e22e">MOV</span> <span style="color:#66d9ef">RDX</span>, <span style="color:#66d9ef">qword</span> <span style="color:#66d9ef">ptr</span> [<span style="color:#66d9ef">R11</span><span style="color:#960050;background-color:#1e0010">+</span><span style="color:#66d9ef">RAX</span>*<span style="color:#ae81ff">8</span>] <span style="color:#75715e">; fetch handler address
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x2028200A7: <span style="color:#a6e22e">CALL</span> <span style="color:#66d9ef">RDX</span>                     <span style="color:#75715e">; execute handler
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">0</span>x2028200A9: <span style="color:#a6e22e">JMP</span> <span style="color:#ae81ff">0x202820087</span>              <span style="color:#75715e">; loop to next instruction
+</span></span></span></code></pre></div><p>I loaded the DLL into x64dbg and generated an instruction trace of the VM execution with <code>abcdefghijklmno</code>, and the trace logged:</p>
+<ul>
+<li>the bytecode offset (<code>RSI-PIE_BASE-0xB9000</code>)</li>
+<li>The opcode and operand bytes (<code>[RSI-2]</code>)</li>
+<li>Which handler address was called (<code>RDX</code>)</li>
+<li>The values of all VM registers (stored within the <code>R12</code> state block)</li>
+<li>the xor key at <code>[R12+0x19A8]</code></li>
+</ul>
+<p><figure>
+  <img src="/assets/part3_vm_trace.png" alt="vm_trace" />
+  
+</figure>
+</p>
+<h3 id="on-the-fly-bytecode-decoding">
+  On-the-Fly Bytecode Decoding
+  <a href="#on-the-fly-bytecode-decoding" class="anchor">#</a>
+</h3>
+<p>One thing I noticed from the trace is that the bytecode is encrypted:</p>
+<ol>
+<li>
+<p><strong>Opcodes</strong> are not decrypted; the dispatcher reads the raw byte and indexes into the handler table directly. The table is pre-shuffled so <code>table[raw_byte]</code> already points to the right handler.</p>
+</li>
+<li>
+<p><strong>Operands</strong> are XORed with a single-byte key at read time. Every handler that needs an operand does <code>XOR reg, byte ptr [R12+0x19A8]</code> before using it.</p>
+</li>
+</ol>
+<h3 id="handler-classification">
+  Handler Classification
+  <a href="#handler-classification" class="anchor">#</a>
+</h3>
+<p>256 entries in the handler table at <code>0x2028B7000</code>, each an 8-byte pointer into the handler code section. I wrote a script to disassemble every unique handler and classify it by instruction patterns:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> struct<span style="color:#f92672">,</span> os
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> capstone <span style="color:#f92672">import</span> Cs, CS_ARCH_X86, CS_MODE_64
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> pefile
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>DLL_PATH <span style="color:#f92672">=</span> os<span style="color:#f92672">.</span>path<span style="color:#f92672">.</span>join(os<span style="color:#f92672">.</span>path<span style="color:#f92672">.</span>dirname(__file__), <span style="color:#e6db74">&#34;native&#34;</span>, <span style="color:#e6db74">&#34;challenge_native.dll&#34;</span>)
+</span></span><span style="display:flex;"><span>PE_BASE <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x202800000</span>
+</span></span><span style="display:flex;"><span>HANDLER_TABLE <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x2028B7000</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>pe <span style="color:#f92672">=</span> pefile<span style="color:#f92672">.</span>PE(DLL_PATH)
+</span></span><span style="display:flex;"><span>img <span style="color:#f92672">=</span> pe<span style="color:#f92672">.</span>get_memory_mapped_image()
+</span></span><span style="display:flex;"><span>rva <span style="color:#f92672">=</span> <span style="color:#66d9ef">lambda</span> va: va <span style="color:#f92672">-</span> PE_BASE
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>handler_table <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>ht_raw <span style="color:#f92672">=</span> img[rva(HANDLER_TABLE):]
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> opcode <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">256</span>):
+</span></span><span style="display:flex;"><span>    handler_table[opcode] <span style="color:#f92672">=</span> struct<span style="color:#f92672">.</span>unpack_from(<span style="color:#e6db74">&#34;&lt;Q&#34;</span>, ht_raw, opcode <span style="color:#f92672">*</span> <span style="color:#ae81ff">8</span>)[<span style="color:#ae81ff">0</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>md <span style="color:#f92672">=</span> Cs(CS_ARCH_X86, CS_MODE_64)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">disasm_handler</span>(va, max_bytes<span style="color:#f92672">=</span><span style="color:#ae81ff">0x300</span>):
+</span></span><span style="display:flex;"><span>    code <span style="color:#f92672">=</span> img[rva(va):rva(va) <span style="color:#f92672">+</span> max_bytes]
+</span></span><span style="display:flex;"><span>    insns <span style="color:#f92672">=</span> []
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> md<span style="color:#f92672">.</span>disasm(code, va):
+</span></span><span style="display:flex;"><span>        insns<span style="color:#f92672">.</span>append(i)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> i<span style="color:#f92672">.</span>mnemonic <span style="color:#f92672">in</span> (<span style="color:#e6db74">&#34;ret&#34;</span>, <span style="color:#e6db74">&#34;ud2&#34;</span>, <span style="color:#e6db74">&#34;jmp&#34;</span>):
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> insns
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">classify_handler</span>(va):
+</span></span><span style="display:flex;"><span>    insns <span style="color:#f92672">=</span> disasm_handler(va)
+</span></span><span style="display:flex;"><span>    text <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>join(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;</span><span style="color:#e6db74">{</span>i<span style="color:#f92672">.</span>mnemonic<span style="color:#e6db74">}</span><span style="color:#e6db74"> </span><span style="color:#e6db74">{</span>i<span style="color:#f92672">.</span>op_str<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span> <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    add_rsi <span style="color:#f92672">=</span> [i <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns <span style="color:#66d9ef">if</span> i<span style="color:#f92672">.</span>mnemonic <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;add&#34;</span> <span style="color:#f92672">and</span> <span style="color:#e6db74">&#34;rsi&#34;</span> <span style="color:#f92672">in</span> i<span style="color:#f92672">.</span>op_str]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> len(insns) <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">10</span> <span style="color:#f92672">and</span> add_rsi:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;NOP&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    has_rdtsc <span style="color:#f92672">=</span> any(i<span style="color:#f92672">.</span>mnemonic <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;rdtsc&#34;</span> <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns)
+</span></span><span style="display:flex;"><span>    vm_reg_write <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;[r12 +&#34;</span> <span style="color:#f92672">in</span> text <span style="color:#f92672">and</span> <span style="color:#e6db74">&#34;*8 + 8]&#34;</span> <span style="color:#f92672">in</span> text
+</span></span><span style="display:flex;"><span>    has_lock <span style="color:#f92672">=</span> any(i<span style="color:#f92672">.</span>bytes[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">==</span> <span style="color:#ae81ff">0xF0</span> <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns <span style="color:#66d9ef">if</span> len(i<span style="color:#f92672">.</span>bytes))
+</span></span><span style="display:flex;"><span>    has_jcc <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;popfq&#34;</span> <span style="color:#f92672">in</span> text <span style="color:#f92672">and</span> any(k <span style="color:#f92672">in</span> text <span style="color:#66d9ef">for</span> k <span style="color:#f92672">in</span> [<span style="color:#e6db74">&#34;jo &#34;</span>,<span style="color:#e6db74">&#34;jb &#34;</span>,<span style="color:#e6db74">&#34;jae &#34;</span>,<span style="color:#e6db74">&#34;je &#34;</span>,<span style="color:#e6db74">&#34;jne &#34;</span>,<span style="color:#e6db74">&#34;ja &#34;</span>,<span style="color:#e6db74">&#34;js &#34;</span>])
+</span></span><span style="display:flex;"><span>    has_imul <span style="color:#f92672">=</span> any(i<span style="color:#f92672">.</span>mnemonic <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;imul&#34;</span> <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns)
+</span></span><span style="display:flex;"><span>    has_cmp <span style="color:#f92672">=</span> any(i<span style="color:#f92672">.</span>mnemonic <span style="color:#f92672">in</span> (<span style="color:#e6db74">&#34;test&#34;</span>,<span style="color:#e6db74">&#34;cmp&#34;</span>) <span style="color:#f92672">and</span> <span style="color:#e6db74">&#34;*8&#34;</span> <span style="color:#f92672">in</span> i<span style="color:#f92672">.</span>op_str <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> insns) <span style="color:#f92672">and</span> <span style="color:#e6db74">&#34;1a08&#34;</span> <span style="color:#f92672">in</span> text
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_jcc: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;JCC&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_lock: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;ATOMIC&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_imul <span style="color:#f92672">and</span> vm_reg_write: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;IMUL&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_cmp: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;CMP&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_rdtsc <span style="color:#f92672">and</span> vm_reg_write: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;MOV_KEY&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#e6db74">&#34;[r14]&#34;</span> <span style="color:#f92672">in</span> text: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;LOAD&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> vm_reg_write: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;ARITH&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> has_rdtsc: <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;RDTSC_NOP&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;UNKNOWN&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>cats <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> va <span style="color:#f92672">in</span> sorted(set(handler_table<span style="color:#f92672">.</span>values())):
+</span></span><span style="display:flex;"><span>    cats<span style="color:#f92672">.</span>setdefault(classify_handler(va), [])<span style="color:#f92672">.</span>append(va)
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> cat, vas <span style="color:#f92672">in</span> sorted(cats<span style="color:#f92672">.</span>items()):
+</span></span><span style="display:flex;"><span>    print(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;  </span><span style="color:#e6db74">{</span>cat<span style="color:#e6db74">:</span><span style="color:#e6db74">10s</span><span style="color:#e6db74">}</span><span style="color:#e6db74">: </span><span style="color:#e6db74">{</span>len(vas)<span style="color:#e6db74">:</span><span style="color:#e6db74">3d</span><span style="color:#e6db74">}</span><span style="color:#e6db74"> handlers&#34;</span>)
+</span></span></code></pre></div><p>Output:</p>
+<pre tabindex="0"><code>  ARITH     :   1 handlers
+  IMUL      :   7 handlers
+  NOP       :  81 handlers
+  RDTSC_NOP :  72 handlers
+  UNKNOWN   :  95 handlers
+</code></pre><p>Most of the 256 handlers are junk, NOPs that just advance <code>RSI</code> or RDTSC anti-debug wrappers that do nothing useful. The actual work (ARITH, IMUL, LOAD, CMP, JCC) is buried in the UNKNOWN bucket and the few classified ones, but only a handful fire on any given execution path.</p>
+<p>Every handler is also bloated with obfuscation:</p>
+<ul>
+<li><strong>Opaque predicates</strong> : XOR/XOR pairs that cancel, followed by a <code>CMP</code> + <code>JE</code> that always jumps to the real code</li>
+<li><strong>RDTSC timing checks</strong> : measure elapsed cycles, <code>PAUSE</code> if too slow (anti-debug but doesn&rsquo;t actually halt)</li>
+<li><strong>Identity transforms</strong> : <code>NOT/NOT</code>, <code>NEG/NEG</code>, <code>ROL N/ROR N</code> on scratch registers</li>
+</ul>
+<p>All of this is irrelevant to the actual computation.</p>
+<h3 id="simplifying-the-whole-vm">
+  Simplifying the whole VM
+  <a href="#simplifying-the-whole-vm" class="anchor">#</a>
+</h3>
+<p>From the trace, the VM&rsquo;s actual execution path for the 15 input bytes follows a repeating pattern:</p>
+<ol>
+<li><strong>LOAD</strong> : read one byte from the input buffer into a VM register</li>
+<li><strong>XOR</strong> : XOR that register with another register holding a constant</li>
+<li><strong>CMP</strong> : compare the result against a target value from <code>.rdata</code></li>
+<li><strong>JCC</strong> : branch to fail if mismatch</li>
+</ol>
+<p>The transform is just <code>input[i] ^ key[i] == target[i]</code> for each of the 15 bytes. The per-byte XOR constants can be read directly from the VM register state in the trace at the point of each XOR instruction:</p>
+<pre tabindex="0"><code>XOR key:  12 0a f0 87 0b 78 43 7b e3 f4 56 de 35 15 89
+</code></pre><p>The 15-byte comparison target from <code>.rdata</code> at <code>0x202804048</code>:</p>
+<pre tabindex="0"><code>target:   4d 3f c7 f5 3b 16 75 48 91 ab 67 ed 06 22 f4
+</code></pre><h3 id="solving">
+  Solving
+  <a href="#solving" class="anchor">#</a>
+</h3>
+<p>Since it&rsquo;s a straight XOR, the flag suffix is just <code>target[i] ^ key[i]</code>:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> z3 <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>target <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#34;4d3fc7f53b16754891ab67ed0622f4&#34;</span>)
+</span></span><span style="display:flex;"><span>key    <span style="color:#f92672">=</span> bytes<span style="color:#f92672">.</span>fromhex(<span style="color:#e6db74">&#34;120af0870b78437be3f456de351589&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>n <span style="color:#f92672">=</span> <span style="color:#ae81ff">15</span>
+</span></span><span style="display:flex;"><span>x <span style="color:#f92672">=</span> [BitVec(<span style="color:#e6db74">f</span><span style="color:#e6db74">&#34;x</span><span style="color:#e6db74">{</span>i<span style="color:#e6db74">}</span><span style="color:#e6db74">&#34;</span>, <span style="color:#ae81ff">8</span>) <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(n)]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>s <span style="color:#f92672">=</span> Solver()
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> c <span style="color:#f92672">in</span> x:
+</span></span><span style="display:flex;"><span>    s<span style="color:#f92672">.</span>add(c <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0x20</span>, c <span style="color:#f92672">&lt;=</span> <span style="color:#ae81ff">0x7e</span>)
+</span></span><span style="display:flex;"><span>s<span style="color:#f92672">.</span>add(x[<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">==</span> ord(<span style="color:#e6db74">&#34;}&#34;</span>))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(n):
+</span></span><span style="display:flex;"><span>    s<span style="color:#f92672">.</span>add((x[i] <span style="color:#f92672">^</span> key[i]) <span style="color:#f92672">==</span> target[i])
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">assert</span> s<span style="color:#f92672">.</span>check() <span style="color:#f92672">==</span> sat
+</span></span><span style="display:flex;"><span>m <span style="color:#f92672">=</span> s<span style="color:#f92672">.</span>model()
+</span></span><span style="display:flex;"><span>print(bytes([m<span style="color:#f92672">.</span>evaluate(x[i])<span style="color:#f92672">.</span>as_long() <span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(n)]))
+</span></span></code></pre></div><p><strong>Part 3 suffix: <code>_57r0n63r_1337}</code></strong></p>
+<hr>
+<h2 id="5-final-flag">
+  5. Final Flag
+  <a href="#5-final-flag" class="anchor">#</a>
+</h2>
+<p>Combining the three recovered chunks:</p>
+<pre tabindex="0"><code>part1 = THEM{h0p3_7h15_7
+part2 = 1m3_7h3_1nfr4_15
+part3 = _57r0n63r_1337}
+</code></pre><p><strong><code>THEM{h0p3_7h15_71m3_7h3_1nfr4_15_57r0n63r_1337}</code></strong></p>
+
+
+  </main>
+  <footer>
+    <div class="footer-content">
+  <p>Copyright 2026. All rights reserved.</p>
+</div>
+
+  </footer>
+</body>
+</html>
