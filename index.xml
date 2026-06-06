@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>zaixrx on zaixrx blog</title><link>https://zaixrx.github.io/</link><description>Recent content in zaixrx on zaixrx blog</description><generator>Hugo</generator><language>en-us</language><lastBuildDate>Sat, 06 Jun 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://zaixrx.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>Cheeseme</title><link>https://zaixrx.github.io/posts/cheeseme/</link><pubDate>Sat, 06 Jun 2026 00:00:00 +0000</pubDate><guid>https://zaixrx.github.io/posts/cheeseme/</guid><description>&lt;h1 id="cheesemeorg---full-writeup"&gt;
+ cheeseme.org - Full Writeup
+ &lt;a href="#cheesemeorg---full-writeup" class="anchor"&gt;#&lt;/a&gt;
+&lt;/h1&gt;
+&lt;h2 id="1-overview"&gt;
+ 1. Overview
+ &lt;a href="#1-overview" class="anchor"&gt;#&lt;/a&gt;
+&lt;/h2&gt;
+&lt;p&gt;We are given a Java binary &lt;code&gt;challenge.jar&lt;/code&gt;. Opening it in JADX reveals two packages: &lt;code&gt;com.update.ctf&lt;/code&gt; and &lt;code&gt;internal&lt;/code&gt;. The main entry point is the &lt;code&gt;com.update.ctf.Challenge&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;&lt;figure&gt;
+ &lt;img src="https://zaixrx.github.io/assets/first.png" alt="overview" /&gt;
+ 
+&lt;/figure&gt;
+&lt;/p&gt;
+&lt;p&gt;Looking at the &lt;code&gt;Challenge&lt;/code&gt; class, we find a few interesting details:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;In the static initializer, it loads a native DLL called &lt;code&gt;challenge_native.dll&lt;/code&gt;, which can be found under &lt;code&gt;Resources/native&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;It defines three checker methods: &lt;code&gt;checkPart1&lt;/code&gt;, &lt;code&gt;checkPart2&lt;/code&gt;, and &lt;code&gt;checkPart3&lt;/code&gt;, alongside a lot of string obfuscation and dead code.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The main validation logic looks like this:&lt;/p&gt;</description></item></channel></rss>
