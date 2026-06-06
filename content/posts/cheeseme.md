@@ -46,8 +46,6 @@ From here we can see the flag length needs to be 47 characters:
 - `16..31` is checked by `Challenge.checkPart2`
 - `32..46` is checked by `Challenge.checkPart3` (a native function linked to the DLL)
 
----
-
 ## 2. Part 1: Simple Reversible Obfuscation
 
 Starting with `checkPart1`, after ignoring the bogus code that wraps the core call, we find `_s$6d77aa71(byte[] bArr)`. This method applies a sequence of bitwise XORs, shifts, and modular additions on the 16-byte input array.
@@ -149,8 +147,6 @@ print(result.decode())
 ```
 
 Running this gives us the first part of the flag: **`THEM{h0p3_7h15_7`**
-
----
 
 ## 3. Part 2: Custom JIT and Virtual Machine
 
@@ -668,8 +664,6 @@ print(bytes([m.evaluate(x[i]).as_long() for i in range(n)]))
 ```
 
 **Part 3 suffix: `_57r0n63r_1337}`**
-
----
 
 ## 5. Final Flag
 
