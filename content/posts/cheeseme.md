@@ -336,13 +336,13 @@ public static /* synthetic */ boolean _nzrf(Object obj) {
 
 As seen in `_s7n9c`, if the method hasn't been cached in `_fy7aqc`, it first reads `ajyiv7/ome04d1e/ff8zoj/gmv3/175018dca521bdad4d58.bin` by calling `_mau4l3`.
 
-![custom_vm](/assets/part2_custom_vm.png)
-
 the `_mau4l3` method acts as a parser/loader for this binary file. It reads various sections such as constants (`_fk60s7`), exception handlers (`_faap7d`), and most importantly, bytecode instructions, initializing them as an array of `a42` objects (`_fapwvn`). It packages all this into an instance of the inner class `ffl` and returns it.
 
 Once the `ffl` object is created and cached, `_s7n9c` immediately invokes `ffl._mafig8(cls, null, input)`, passing the input (the second chunk of the flag) to it.
 
 If we examine `obmwyxuh$ffl._mafig8` in the decompiled code, we find a classic Virtual Machine interpreter loop:
+
+![custom_vm](/assets/part2_custom_vm.png)
 
 ```java
 hyw hywVar = new hyw(this._fwau0n, this._fafgs3);
