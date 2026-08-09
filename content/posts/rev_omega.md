@@ -32,7 +32,7 @@ it then forks and opens a pipe, the child process calls a function `exec_job` th
 it then waits for the child to finish, extract the exit status and if it's zero it also runs `exec_job` on the prx file, if not it exits with a message `[-] Verification failed\n`
 ![overview](/assets/l3ak_rev_omega/exec_prx_5.png)
 
-which means the binary is running some sort of validator passing in both the secret and the payload, if that suceeds it runs the provided prx file which is what I supposed to craft to read the flag
+meaning the executor validates the prx file with the secret it has, if it's valid it executes it's code, therefore we must make a valid prx that also reads the flag
 
 the `exec_job` function looks like this:
 ```c
@@ -67,25 +67,27 @@ void vm_loop(u8 *vm_handle) {
 }
 ```
 
-there is a vm_handle allocated in the stack, that get's initialized, used to parse prx file(prolly loads it in memory), then executes the bytecode in `vm_loop`
+there is a vm_handle allocated in the stack, that get's initialized, used to parse prx file(loads sections in memory and sets up some registers and initial IP), then executes the bytecode in `vm_loop`
 
 # PRX Binary Format
 understanding the binary format is really important as it will help us write the exploit later, to explain it I find it enough to only give a byte offset table, with a short description for each field:
 ```
 0x0000000 magic          // b"PRX\x00\x01", 5 bytes (includes version)
 0x0000005 section_count  // number of section entries
-0x0000006 flags          // does some nieche shit
-0x0000007 ...            // works with reg28(used for error indication ig)
+0x0000006 flags          // works with reg28
+0x0000007 ...            // padding
 0x0000008 entry_ip       // initial ip / next_ip-4
 0x000000C reg28          // only written if flags & 1
 ...
 0x0000030 phdrs[]        // section_count * 16-byte entries
+// then after you get the actual sections
 ```
 
+and here is the phdr structure
 ```
 0x0000000 start          // offset into file, section data start
 0x0000004 page_base      // destination page address
-0x0000008 size           // section size, 0xffffffff = rest of file
+0x0000008 size           // section size, 0xffffffff = rest of file(remember that.. lol)
 0x000000C something      // don't need that
 ```
 
@@ -113,28 +115,28 @@ the VM comes with some very mid opcodes nothing special, and I didn't have to re
 - { MOVB, MOVW, MOVD } { [expression], reg_dest }, { [expression], reg_src }:
 either loads data from the address being the value of `expression` to `reg_dest`, or moves data from `reg_src` to the address being the value of `expression`, the load/move can be of a byte, a word or a dword respectively
 
-- { ADD, SUB, AND, OR, XOR, NOR, SHL, SHR, LESS } reg_dest, reg_lhs, reg_rhs
+- { ADD, SUB, AND, OR, XOR, NOR, SHL, SHR, LESS } reg_dest, reg_lhs, reg_rhs:
 perform the above binary operations on `reg_lhs` and `reg_rhs` and stores the result in `reg_dest`
 
-- { ADD, OR, AND, LESS } reg_dest, reg_lhs, imm
+- { ADD, OR, AND, LESS } reg_dest, reg_lhs, imm:
 perform the above binary operations on `reg_lhs` and `imm` and stores teh result in `reg_dest`, the immediate is constructed from it's corresponding bit range inside the opcode(which doesn't have to be contiguous), then besides for AND and OR it's masked to 16-bits and sign-extended 
 
-- { SHL, SHR } reg_dest, reg_lhs, imm5
+- { SHL, SHR } reg_dest, reg_lhs, imm5:
 takes lowest bits 27-31 from opcode and performs a left or right shift of `reg_lhs` with `imm5`, the result is stored inside `reg_dest`
 
-- MOV reg_dest, imm
+- MOV reg_dest, imm:
 loads a constructed immediate `imm`(depending on it's bit-range in the opcode) to the top 16-bits of `reg_dest`
 
-- JMP reg
+- JMP reg:
 schedule a jump to instruction pointed to by `reg`
 
-- JE, JNE, JLE imm
-always following a CMP instruction, the result will deduce whether or not to jump to instruction pointed to by `imm`
+- JE, JNE, JLE imm:
+always following a CMP instruction, the result will deduce whether or not to jump to the instruction pointed to by `imm`
 
-- JMP imm
+- JMP imm:
 always following a `MOV r31 imm` instruction together they form a function call, `r31` represents what is known as **LR** or Link Register which holds the address the called function should return to when it exits with a `JMP r31` instruction
 
-- IODispatch
+- IODispatch:
 you can think of it as a syscall, it traps out of the vm_loop into x64 to execute an IO call, more details later
 
 # Emulator & Disassembler
@@ -189,7 +191,7 @@ the write_byte function takes the third argument `a3` and writes it into the sec
 ```c
 memory = (*(u64**)vm.pages_ptr)[a2 >> 0xC];
 if memory == NULL {
-    (*(u64**)vm.pages_ptr)[a2 >> 0xC] = memory = malloc(0x1000);
+    (*(u64**)vm.pages_ptr)[a2 >> 0xC] = memory = xcalloc(0x1000);
 }
 *(u32*)(memory + (a2 & 0xfff)) = a3;
 ```
@@ -290,7 +292,7 @@ as you can see I tracked all registers, memory and program counters, that made m
 
 finally I wrote a `disasm_inst` method which was a bunch of prints so nothing special about that... which helped write a tracer and a disassembler.
 
-*you can find all the code [here](TODO)*
+*you can find all the code [here](https://github.com/zaixrx/l3ak_rev_omega)*
 
 # The Validation
 finally I am in the validator, the entry point is at 0x400244 and it calls to two functions:
@@ -510,7 +512,7 @@ but for loading the code my first attempt was to increment the file offset `0x5`
 $ xxd -s 80 ./echo.local.prx | head -n 2
 80a0 0101 3a30 0000 1080 8100 3b30 0a01  ....:0......;0..
 ```
-the section start would have been at file offset `0x101a080` with a size of `0x818010` which would make the file HUGE, although I [tried](TODO) to do that and did mange to make it work locally, the file was so large that it passed the remote file size limit :(
+the section start would have been at file offset `0x101a080` with a size of `0x818010` which would make the file HUGE, although I [tried](https://raw.githubusercontent.com/zaixrx/l3ak_rev_omega/refs/heads/master/huge_ahh_payload_gen.py) to do that and did mange to make it work locally, the file was so large that it passed the remote file size limit :(
 
 but them I see something I already forgot about:
 ![overview](/assets/l3ak_rev_omega/set_until_eof.png)
