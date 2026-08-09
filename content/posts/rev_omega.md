@@ -71,8 +71,23 @@ there is a vm_handle allocated in the stack, that get's initialized, used to par
 
 # PRX Binary Format
 understanding the binary format is really important as it will help us write the exploit later, to explain it I find it enough to only give a byte offset table, with a short description for each field:
+```
+0x0000000 magic          // b"PRX\x00\x01", 5 bytes (includes version)
+0x0000005 section_count  // number of section entries
+0x0000006 flags          // does some nieche shit
+0x0000007 ...            // works with reg28(used for error indication ig)
+0x0000008 entry_ip       // initial ip / next_ip-4
+0x000000C reg28          // only written if flags & 1
+...
+0x0000030 phdrs[]        // section_count * 16-byte entries
+```
 
-TODO: Diagram
+```
+0x0000000 start          // offset into file, section data start
+0x0000004 page_base      // destination page address
+0x0000008 size           // section size, 0xffffffff = rest of file
+0x000000C something      // don't need that
+```
 
 # VM Architecture
 
@@ -511,7 +526,7 @@ I don't have to introduce a new section, I can just extend the second section(.d
 
 I first generated a payload that works with the local secret:
 ```py
-``import struct
+import struct
 
 MAGIC = b'PRX\x00\x01'
 # ip = 0x304e
