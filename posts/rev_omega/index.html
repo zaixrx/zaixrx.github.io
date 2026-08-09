@@ -34,7 +34,19 @@
 </span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
 </span></span><span style=display:flex><span>}
 </span></span></code></pre></div><p>there is a vm_handle allocated in the stack, that get&rsquo;s initialized, used to parse prx file(prolly loads it in memory), then executes the bytecode in <code>vm_loop</code></p><h1 id=prx-binary-format>PRX Binary Format
-<a href=#prx-binary-format class=anchor>#</a></h1><p>understanding the binary format is really important as it will help us write the exploit later, to explain it I find it enough to only give a byte offset table, with a short description for each field:</p><p>TODO: Diagram</p><h1 id=vm-architecture>VM Architecture
+<a href=#prx-binary-format class=anchor>#</a></h1><p>understanding the binary format is really important as it will help us write the exploit later, to explain it I find it enough to only give a byte offset table, with a short description for each field:</p><pre tabindex=0><code>0x0000000 magic          // b&#34;PRX\x00\x01&#34;, 5 bytes (includes version)
+0x0000005 section_count  // number of section entries
+0x0000006 flags          // does some nieche shit
+0x0000007 ...            // works with reg28(used for error indication ig)
+0x0000008 entry_ip       // initial ip / next_ip-4
+0x000000C reg28          // only written if flags &amp; 1
+...
+0x0000030 phdrs[]        // section_count * 16-byte entries
+</code></pre><pre tabindex=0><code>0x0000000 start          // offset into file, section data start
+0x0000004 page_base      // destination page address
+0x0000008 size           // section size, 0xffffffff = rest of file
+0x000000C something      // don&#39;t need that
+</code></pre><h1 id=vm-architecture>VM Architecture
 <a href=#vm-architecture class=anchor>#</a></h1><p>the VM is register based, with a whooping 32 4-byte registers each, and here is what I defined the struct as:</p><pre tabindex=0><code>0x0000000 [r0-r28]       // GPRs
 0x0000074 r29            // Stack Pointer
 0x0000078 r30            // GPR
@@ -358,7 +370,7 @@ ENTRY POINT:
 80a0 0101 3a30 0000 1080 8100 3b30 0a01  ....:0......;0..
 </code></pre><p>the section start would have been at file offset <code>0x101a080</code> with a size of <code>0x818010</code> which would make the file HUGE, although I <a href=TODO>tried</a> to do that and did mange to make it work locally, the file was so large that it passed the remote file size limit :(</p><p>but them I see something I already forgot about:<figure><img src=/assets/l3ak_rev_omega/set_until_eof.png alt=overview></figure></p><p>and the second section falls in that exact case:</p><pre tabindex=0><code>00000040: 7002 0000 0010 4000 ffff ffff a003 0000  p.....@.........
 </code></pre><p>I don&rsquo;t have to introduce a new section, I can just extend the second section(.data) which already is variable length, and point IP in there</p><h1 id=the-light-at-the-end-of-the-tunnel>The Light At The End Of The Tunnel
-<a href=#the-light-at-the-end-of-the-tunnel class=anchor>#</a></h1><p>I first generated a payload that works with the local secret:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>``</span><span style=color:#f92672>import</span> struct
+<a href=#the-light-at-the-end-of-the-tunnel class=anchor>#</a></h1><p>I first generated a payload that works with the local secret:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#f92672>import</span> struct
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span>MAGIC <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;PRX</span><span style=color:#ae81ff>\x00\x01</span><span style=color:#e6db74>&#39;</span>
 </span></span><span style=display:flex><span><span style=color:#75715e># ip = 0x304e</span>
