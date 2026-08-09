@@ -486,6 +486,10 @@ ooookay, the function looks like it's initializing some sha256 context based on 
 
 so the algorithm is rather simple -- it's doing `sha256(secret+file)`, and because standard sha256 implementations usually process data in blocks of 0x40 bytes with little padding and `len * 8` postfix at the end, the validator's implementation is seperated to when you have a full 0x40 block buffered `0x400578`, and when you don't `0x4006D0`
 
+of course that wasn't all that I analyzed, I manually veriefied both `0x400578` and `0x4006D0` and it turns out both call to a function `0x400270` which is responsible for hashing one block and storing the result in the first `0x20` bytes of the context(passed in r4, the data is passed in r5 and that usually equal r4 + 0x24)
+
+I have a documented disassembly [here](https://github.com/zaixrx/l3ak_rev_omega/blob/master/disasm) for those interested
+
 so I spawned a REPL session testing out our hypothesis
 ```py
 >>> data = open("echo.local.prx", "rb").read()
@@ -498,16 +502,33 @@ so I spawned a REPL session testing out our hypothesis
 >>> target_hash.hex()
 '06b9b4ff772b501ff2a142d77c581a6fa56ac9a3c856f0eec6bc1093a5ac4973'
 ```
-ouuu shit that's it??... [clears throat] exuce me.
+ouuu shit that's it??... [clears throat] exuce me, note that we start from 0x30 because that's what the parent process send to us from the pipe, I have an equivalent of what get's sent inside the [VM class](https://github.com/zaixrx/l3ak_rev_omega/blob/136be501220be2a3f78f99e1f118c1cd9ddd9fb0/emulator.py#L68):
+```py
+    def write_replay(self):
+        yield struct.pack("<I", 0x10)
+        yield bytes.fromhex(self.secret)
+        yield struct.pack("<I", len(self.prx)-0x30)
+        data = self.prx[0x30:] 
+        count = 0
+        total = len(data) // 0x200
+        while len(data) >= 0x200:
+            count += 1
+            print(f"{total} {count / total}%")
+            to_replay = data[:0x200]; data = data[0x200:]
+            yield to_replay
+        if len(data) > 0:
+            yield data
+        yield self.prx[0x10:0x30]
+```
 
 # The Vulnerability
 *by now it may be clear to some of you what the next step should be, I felt lost atp and started brute-forcing the secert :), then I asked the author and because he is a giga-chad he just told me there is a length-extension vulnerability, so I felt stupid for a moment and continued*
 
 so the idea here is pretty simple, because whenever a block is hashed, it's hash becomes the IV of the next block, I can take the very last hash(in the prx header) and make it the IV of our own data, I just need to make sure the base data has what ever padding and data sha256 inserts at the end
 
-but I also need to make sure my data, get's loaded into memory and that I have access to control flow without modifying any file data beyond the offset `0x30`, so the idea was clear there is a dword at file offset `0x8` that initializes the `IP` register I need to point that at the address where my code starts, so that's the control flow problem solved
+but I also need to make sure my data, get's loaded into memory and that I have access to control flow without modifying any file data beyond the offset `0x30`(because that's what get's hashed), so the idea was clear there is a dword at file offset `0x8` that initializes the `IP` register I need to point that at the address where my code starts, so that's the control flow problem solved
 
-but for loading the code my first attempt was to increment the file offset `0x5` which is a byte indicating the number of sections, so that automatically loads my own section with my code inside. the only issue is.. look at what the section phdr is:
+but for loading the code my first attempt was to increment the file offset `0x5` which is a byte indicating the number of sections, which means without modifying any code inside the file after `0x30` I can introduce a new section, and adapt my code to that section, the only problem is that the data there can literally be anything...
 ```
 $ xxd -s 80 ./echo.local.prx | head -n 2
 80a0 0101 3a30 0000 1080 8100 3b30 0a01  ....:0......;0..
@@ -517,12 +538,10 @@ the section start would have been at file offset `0x101a080` with a size of `0x8
 but them I see something I already forgot about:
 ![overview](/assets/l3ak_rev_omega/set_until_eof.png)
 
-and the second section falls in that exact case:
+if the section size is 0xFFFFFFFF or -1, it get's assaigned to whatever size is left from the section start to the file end, which will make me able to append code at the end, and it will load perfectly fine!!! and guess what the second section falls exactly in this case!!!(if only I didn't give a shit about this problem and just tried to append data at the end of the program, just to see what happens lol), then I just point my IP to that exact code location
 ```
 00000040: 7002 0000 0010 4000 ffff ffff a003 0000  p.....@.........
 ```
-
-I don't have to introduce a new section, I can just extend the second section(.data) which already is variable length, and point IP in there
 
 # The Light At The End Of The Tunnel
 
@@ -683,7 +702,7 @@ final_header = b'\x50\x52\x58\x00\x01\x02\x00\x00\xc5\x13\x40\x00\x00\x00\x00\x0
 
 open("./final.prx", "wb").write(final_header + final_hash + final_payload)
 ```
-the implementation of sha256 I found [here](https://raw.githubusercontent.com/keanemind/python-sha-256/refs/heads/master/sha256.py) I just removed the padding bs cuz I added it manually
+the implementation of sha256 I found [here](https://raw.githubusercontent.com/keanemind/python-sha-256/refs/heads/master/sha256.py) I just removed the padding and all because we do that manually
 
 there was a one offset difference because the local secret is one byte bigger than the remote, but anyways I run the script, base64 encode the payload, send it to the remote server aaaaaaaaaaaaaaaaaaaaaaaaaanddd........
 
