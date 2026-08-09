@@ -1,0 +1,509 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=mobile-web-app-capable content="yes"><meta name=viewport content="width=device-width,initial-scale=1,initial-scale=1,shrink-to-fit=no"><title>L3ak Omega MIPS Devirtualization | zaixrx blog</title><link rel=stylesheet href=/css/vars.css><link rel=stylesheet href=/css/syntax.css><link rel=stylesheet href=/css/main.css><link rel=stylesheet href=/css/nav.css></head><body><header><nav class=navbar><p>zaixrx blog</p><label for=dropdown><svg height="20" fill="currentColor" viewBox="0 0 640 640"><title>Menu</title><path d="M96 160c0-17.7 14.3-32 32-32H512c17.7.0 32 14.3 32 32s-14.3 32-32 32H128c-17.7.0-32-14.3-32-32zm0 160c0-17.7 14.3-32 32-32H512c17.7.0 32 14.3 32 32s-14.3 32-32 32H128c-17.7.0-32-14.3-32-32zM544 480c0 17.7-14.3 32-32 32H128c-17.7.0-32-14.3-32-32s14.3-32 32-32H512c17.7.0 32 14.3 32 32z"/></svg>
+</label><input type=checkbox id=dropdown checked><ul><li><a href=/>Home</a></li><li><a aria-current=page class=active href=/posts/>Posts</a></li></ul></nav></header><main><h1>L3ak Omega MIPS Devirtualization</h1><div class=metadata><time datetime=2026-08-09T00:00:00+00:00>August 9, 2026</time></div><h1 id=challenge>Challenge
+<a href=#challenge class=anchor>#</a></h1><p>l3ak ctf 2026 had alot of interesting reverse challenges, I only really looked at this challenge and that was after the ctf ended because I couldn&rsquo;t play it in time, the challenge comes with a README.md and a binary called <strong>executor</strong></p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>$ ./executor
+</span></span><span style=display:flex><span>usage: ./executor &lt;job.prx&gt;
+</span></span></code></pre></div><p>it&rsquo;s asking for a <code>prx</code> file which is a custom binary format :(, the README also says that the goal is to read <code>/challenge/flag.txt</code> in the remote instance running the executor, so probably I need to let the prx file do that</p><p>I am also given two files ./echo.local.prx and ./echo.remote.prx, running a small bindiff I see that they are mostly the same besides the part from 0x10 to 0x30&mldr; interesting</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>vimdiff &lt;<span style=color:#f92672>(</span>xxd ./echo.local.prx<span style=color:#f92672>)</span> &lt;<span style=color:#f92672>(</span>xxd echo.remote.prx<span style=color:#f92672>)</span>
+</span></span></code></pre></div><p><figure><img src=/assets/l3ak_rev_omega/vimdiff.png alt=overview></figure></p><p>I can also run the local file passing the secret in as an env variable, but I can&rsquo;t do that with the remote file, possibly because I am missing the remote secret, so the previous bindiff result is prolly cuz of the difference in the secrets<figure><img src=/assets/l3ak_rev_omega/echo_local_run.png alt=overview></figure></p><h1 id=main-function>Main Function
+<a href=#main-function class=anchor>#</a></h1><p>I opened executor in ghidra, and the main function looks like it&rsquo;s reading a secret either from the environment or a file <code>.env</code> represented in hex, it also reads the <code>job.prx</code> you pass as an argument<figure><img src=/assets/l3ak_rev_omega/secret_3.png alt=overview></figure></p><p>it then forks and opens a pipe, the child process calls a function <code>exec_job</code> that is passed a global variable and a quite large number <code>0xa80</code> which pretty much looks like bytecode, the parent process also sends the secret and the prx file to the child process via the previously opened pipe<figure><img src=/assets/l3ak_rev_omega/fork_4.png alt=overview></figure></p><p>it then waits for the child to finish, extract the exit status and if it&rsquo;s zero it also runs <code>exec_job</code> on the prx file, if not it exits with a message <code>[-] Verification failed\n</code><figure><img src=/assets/l3ak_rev_omega/exec_prx_5.png alt=overview></figure></p><p>which means the binary is running some sort of validator passing in both the secret and the payload, if that suceeds it runs the provided prx file which is what I supposed to craft to read the flag</p><p>the <code>exec_job</code> function looks like this:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-c data-lang=c><span style=display:flex><span>u32 <span style=color:#a6e22e>exec_job</span>(u8 <span style=color:#f92672>*</span>job, u64 job_size) {
+</span></span><span style=display:flex><span>  i32 parse_stauts;
+</span></span><span style=display:flex><span>  u32 ret_val;
+</span></span><span style=display:flex><span>  u8 vm_handle[<span style=color:#ae81ff>0xAC</span>];
+</span></span><span style=display:flex><span>  
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>vm_init</span>(vm_handle);
+</span></span><span style=display:flex><span>  parse_stauts <span style=color:#f92672>=</span> <span style=color:#a6e22e>vm_parse_prx</span>(vm_handle,job,job_size);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (parse_stauts <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>vm_set_sp</span>(vm_handle);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>vm_loop</span>(vm_handle);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>vm_free</span>(vm_handle <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x90</span>);
+</span></span><span style=display:flex><span>    ret_val <span style=color:#f92672>=</span> <span style=color:#f92672>*</span>(u8<span style=color:#f92672>*</span>)(vm_handle <span style=color:#f92672>+</span> <span style=color:#ae81ff>0xa8</span>);
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>else</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>vm_free</span>(vm_handle <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x90</span>);
+</span></span><span style=display:flex><span>    ret_val <span style=color:#f92672>=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> ret_val;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>vm_loop</span>(u8 <span style=color:#f92672>*</span>vm_handle) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>if</span> (<span style=color:#f92672>*</span>(i32<span style=color:#f92672>*</span>)(vm_handle <span style=color:#f92672>+</span> <span style=color:#ae81ff>0xa4</span>) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>  }
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>do</span> {
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>vm_run</span>(vm_handle);
+</span></span><span style=display:flex><span>  } <span style=color:#66d9ef>while</span> (<span style=color:#f92672>*</span>(i32<span style=color:#f92672>*</span>)(vm_handle <span style=color:#f92672>+</span> <span style=color:#ae81ff>0xa4</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>);
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>there is a vm_handle allocated in the stack, that get&rsquo;s initialized, used to parse prx file(prolly loads it in memory), then executes the bytecode in <code>vm_loop</code></p><h1 id=prx-binary-format>PRX Binary Format
+<a href=#prx-binary-format class=anchor>#</a></h1><p>understanding the binary format is really important as it will help us write the exploit later, to explain it I find it enough to only give a byte offset table, with a short description for each field:</p><p>TODO: Diagram</p><h1 id=vm-architecture>VM Architecture
+<a href=#vm-architecture class=anchor>#</a></h1><p>the VM is register based, with a whooping 32 4-byte registers each, and here is what I defined the struct as:</p><pre tabindex=0><code>0x0000000 [r0-r28]       // GPRs
+0x0000074 r29            // Stack Pointer
+0x0000078 r30            // GPR
+0x000007C r31            // Link Register
+0x0000080 ip             // Intruction Pointer
+0x0000084 next_ip        // Next Intruction Pointer
+...
+0x0000090 pages_ptr      // 64-bit Pointer To An Array Of Pages
+...
+0x00000A4 is_stopped     // Is The VM Stopped
+0x00000A8 exit_status    // VM `exit` Status, If 0 Success Else Failure
+...
+</code></pre><p>those are all the fields I needed to solve the challenge, <code>pages_ptr</code> is interesting because each page is allocated seperatly, and their pointers are stored in an array pointed to by <code>pages_ptr</code>(each page is 4096 bytes), <code>exit_status</code> is the value that is checked by the parent process to see if the validator succeeded</p><p>the VM comes with some very mid opcodes nothing special, and I didn&rsquo;t have to reverse them all, so I only took care of the ones that needed to be executed for the valiadtor to function correctly:</p><ul><li><p>{ MOVB, MOVW, MOVD } { [expression], reg_dest }, { [expression], reg_src }:
+either loads data from the address being the value of <code>expression</code> to <code>reg_dest</code>, or moves data from <code>reg_src</code> to the address being the value of <code>expression</code>, the load/move can be of a byte, a word or a dword respectively</p></li><li><p>{ ADD, SUB, AND, OR, XOR, NOR, SHL, SHR, LESS } reg_dest, reg_lhs, reg_rhs
+perform the above binary operations on <code>reg_lhs</code> and <code>reg_rhs</code> and stores the result in <code>reg_dest</code></p></li><li><p>{ ADD, OR, AND, LESS } reg_dest, reg_lhs, imm
+perform the above binary operations on <code>reg_lhs</code> and <code>imm</code> and stores teh result in <code>reg_dest</code>, the immediate is constructed from it&rsquo;s corresponding bit range inside the opcode(which doesn&rsquo;t have to be contiguous), then besides for AND and OR it&rsquo;s masked to 16-bits and sign-extended</p></li><li><p>{ SHL, SHR } reg_dest, reg_lhs, imm5
+takes lowest bits 27-31 from opcode and performs a left or right shift of <code>reg_lhs</code> with <code>imm5</code>, the result is stored inside <code>reg_dest</code></p></li><li><p>MOV reg_dest, imm
+loads a constructed immediate <code>imm</code>(depending on it&rsquo;s bit-range in the opcode) to the top 16-bits of <code>reg_dest</code></p></li><li><p>JMP reg
+schedule a jump to instruction pointed to by <code>reg</code></p></li><li><p>JE, JNE, JLE imm
+always following a CMP instruction, the result will deduce whether or not to jump to instruction pointed to by <code>imm</code></p></li><li><p>JMP imm
+always following a <code>MOV r31 imm</code> instruction together they form a function call, <code>r31</code> represents what is known as <strong>LR</strong> or Link Register which holds the address the called function should return to when it exits with a <code>JMP r31</code> instruction</p></li><li><p>IODispatch
+you can think of it as a syscall, it traps out of the vm_loop into x64 to execute an IO call, more details later</p></li></ul><h1 id=emulator--disassembler>Emulator & Disassembler
+<a href=#emulator--disassembler class=anchor>#</a></h1><p>I first started with the emulator as it made be discover a lot of nuances inside the ISA, details that I wouldn&rsquo;t even need to solve the challenge lol, so first I started with the <code>0x6</code> branch instructions as they looked the most easy to reverse and would be a good first step</p><p>take this mid-ass handler which compares two registers and stores the result in another register in case <code>opcode & 0x3e0000 != 0</code> otherwise it&rsquo;s just a NOP:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-c data-lang=c><span style=display:flex><span>    <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>0x1c</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>      retval <span style=color:#f92672>=</span> vm_instance[<span style=color:#ae81ff>0x29</span>];
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>if</span> ((opcode <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x3e0000</span>) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>        vm_instance[opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x11</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>] <span style=color:#f92672>=</span>
+</span></span><span style=display:flex><span>             (uint)((uint)vm_instance[opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x16</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>] <span style=color:#f92672>&lt;</span> (uint)vm_instance[opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>6</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>]
+</span></span><span style=display:flex><span>                   );
+</span></span><span style=display:flex><span>      }
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>break</span>;
+</span></span></code></pre></div><p>and that, which sets the next_ip instruction effectively <strong>scheduling</strong> a jump, and I said <strong>scheduling</strong> cuz the mfs who designed MIPS made it so that any jump is delayed with one instruction:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-c data-lang=c><span style=display:flex><span>    <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>0x29</span><span style=color:#f92672>:</span> <span style=color:#75715e>// JMP
+</span></span></span><span style=display:flex><span>      retval <span style=color:#f92672>=</span> vm_instance[<span style=color:#ae81ff>0x29</span>];
+</span></span><span style=display:flex><span>      vm_instance[<span style=color:#ae81ff>0x21</span>] <span style=color:#f92672>=</span> vm_instance[opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x16</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>];
+</span></span><span style=display:flex><span>      <span style=color:#66d9ef>break</span>;
+</span></span></code></pre></div><p>moving forward in the <code>0x6</code> branch, I stubbmled upon case <code>0x11</code> that calls to a function I renamed <code>handle_syscall</code>, which provides some IO primitives, meaning I can use that later to open and read the flag&mldr; cool.<figure><img src=/assets/l3ak_rev_omega/handle_syscall.png alt=overview></figure></p><p>the &ldquo;syscalls&rdquo; it provides are:
+<em>(go see <a href=https://man7.org/linux/man-pages/man2>man7</a> if you don&rsquo;t like my explanation)</em></p><ul><li><code>open(path=R4, flags=R5, perms=R6)</code> opens the file in <code>path</code> with <code>flags</code> and <code>perms</code>(depends on <code>flags</code>)</li><li><code>read(fd=R4, data=R5, data_size=R6)</code> reads <code>data_size</code> bytes from <code>fd</code> and stores them in <code>data</code>(in-VM pointer), returns number of bytes read</li><li><code>write(fd=R4, data=R5, data_size=R6)</code> writes <code>data_size</code> bytes from <code>data</code>(in-VM pointer) to the file descriptor <code>fd</code>, returns number of bytes written</li><li><code>exit(exit_status=r4)</code> exists with <code>exit_status</code></li></ul><p>the return value is stored inside <code>r2</code>, and an error indicator boolean inside <code>r28</code></p><p>after that I went to the top-level branch and reversed the remaining instructions, which were mostly memory reads, writes and conditional jumps</p><p>here is an illustrative example:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-c data-lang=c><span style=display:flex><span>  <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>0x11</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>write_byte</span>(vm_instance,
+</span></span><span style=display:flex><span>               (<span style=color:#66d9ef>int</span>)(<span style=color:#66d9ef>short</span>)((ushort)((opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x11</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0xb</span>) <span style=color:#f92672>|</span> (ushort)((opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x1b</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>6</span>) <span style=color:#f92672>|</span>
+</span></span><span style=display:flex><span>                           opcode_ <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x3f</span>) <span style=color:#f92672>+</span> vm_instance[opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0x16</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>],
+</span></span><span style=display:flex><span>               <span style=color:#f92672>*</span>(undefined1 <span style=color:#f92672>*</span>)(vm_instance <span style=color:#f92672>+</span> (opcode <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>6</span> <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>)));
+</span></span><span style=display:flex><span>    retval <span style=color:#f92672>=</span> vm_instance[<span style=color:#ae81ff>0x29</span>];
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>break</span>;
+</span></span></code></pre></div><p>the write_byte function takes the third argument <code>a3</code> and writes it into the second argument <code>a2</code>(in-VM address) as follows:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-c data-lang=c><span style=display:flex><span>memory <span style=color:#f92672>=</span> (<span style=color:#f92672>*</span>(u64<span style=color:#f92672>**</span>)vm.pages_ptr)[a2 <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0xC</span>];
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> memory <span style=color:#f92672>==</span> NULL {
+</span></span><span style=display:flex><span>    (<span style=color:#f92672>*</span>(u64<span style=color:#f92672>**</span>)vm.pages_ptr)[a2 <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0xC</span>] <span style=color:#f92672>=</span> memory <span style=color:#f92672>=</span> <span style=color:#a6e22e>malloc</span>(<span style=color:#ae81ff>0x1000</span>);
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span><span style=color:#f92672>*</span>(u32<span style=color:#f92672>*</span>)(memory <span style=color:#f92672>+</span> (a2 <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0xfff</span>)) <span style=color:#f92672>=</span> a3;
+</span></span></code></pre></div><p>after I finished the vm loop, I went back and implmented prx parsing which handles loading the progam&rsquo;s sections in memory(e.g .data, .text), and boom a full emulator&mldr; of course it wasn&rsquo;t as easy as that there were some bugs, and to make sure I have <strong>absolutely no bugs</strong>(my way of saying I got carried away with programming), I built a gdb script that tracks the VMs state after each execution of any instruction in sync with the native executor, and stop whenever there is a mismatch, here it is:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#f92672>import</span> gdb
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> hashlib
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>from</span> main <span style=color:#f92672>import</span> VM
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>inst_count <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>pages <span style=color:#f92672>=</span> set()
+</span></span><span style=display:flex><span>vm <span style=color:#f92672>=</span> VM(open(<span style=color:#e6db74>&#34;./validator.bin&#34;</span>, <span style=color:#e6db74>&#34;rb&#34;</span>)<span style=color:#f92672>.</span>read())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>NewPageLogger</span>(gdb<span style=color:#f92672>.</span>Breakpoint):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>stop</span>(self):
+</span></span><span style=display:flex><span>        addr <span style=color:#f92672>=</span> gdb<span style=color:#f92672>.</span>parse_and_eval(<span style=color:#e6db74>&#34;(unsigned int*)($rsi)&#34;</span>)
+</span></span><span style=display:flex><span>        pages<span style=color:#f92672>.</span>add(int(addr) <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0xC</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>OpcodeLogger</span>(gdb<span style=color:#f92672>.</span>Breakpoint):
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>stop</span>(self):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>global</span> inst_count
+</span></span><span style=display:flex><span>        is_buggy <span style=color:#f92672>=</span> <span style=color:#66d9ef>False</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            vm<span style=color:#f92672>.</span>vm_exec()
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> vm<span style=color:#f92672>.</span>ret_val <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>:
+</span></span><span style=display:flex><span>                print(<span style=color:#e6db74>&#34;=== FINISHED ===&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span> <span style=color:#66d9ef>as</span> e:
+</span></span><span style=display:flex><span>            print(<span style=color:#e6db74>&#34;CRASHED&#34;</span>, e)
+</span></span><span style=display:flex><span>            is_buggy <span style=color:#f92672>=</span> <span style=color:#66d9ef>True</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        inst_count <span style=color:#f92672>+=</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>        ip <span style=color:#f92672>=</span> gdb<span style=color:#f92672>.</span>parse_and_eval(<span style=color:#e6db74>&#34;*(unsigned int*)($rbx + 0x80)&#34;</span>)
+</span></span><span style=display:flex><span>        next_ip <span style=color:#f92672>=</span> gdb<span style=color:#f92672>.</span>parse_and_eval(<span style=color:#e6db74>&#34;*(unsigned int*)($rbx + 0x84)&#34;</span>)
+</span></span><span style=display:flex><span>        regs <span style=color:#f92672>=</span> [gdb<span style=color:#f92672>.</span>parse_and_eval(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*(unsigned int*)($rbx + </span><span style=color:#e6db74>{</span>i <span style=color:#f92672>*</span> <span style=color:#ae81ff>4</span><span style=color:#e6db74>}</span><span style=color:#e6db74>)&#34;</span>) <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>0x20</span>)] 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        bin_pages <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>        inferior <span style=color:#f92672>=</span> gdb<span style=color:#f92672>.</span>inferiors()[<span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> page <span style=color:#f92672>in</span> pages:
+</span></span><span style=display:flex><span>            memory <span style=color:#f92672>=</span> int(gdb<span style=color:#f92672>.</span>parse_and_eval(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*(unsigned long*)(*(unsigned long*)($rbx+0x90)+</span><span style=color:#e6db74>{</span>page<span style=color:#e6db74>}</span><span style=color:#e6db74>*8)&#34;</span>))
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>assert</span> memory <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>            bin_pages[page] <span style=color:#f92672>=</span> hashlib<span style=color:#f92672>.</span>md5(inferior<span style=color:#f92672>.</span>read_memory(memory, <span style=color:#ae81ff>0x1000</span>))<span style=color:#f92672>.</span>hexdigest()
+</span></span><span style=display:flex><span>        vm_pages <span style=color:#f92672>=</span> {}
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> page <span style=color:#f92672>in</span> vm<span style=color:#f92672>.</span>pages:
+</span></span><span style=display:flex><span>            vm_pages[page] <span style=color:#f92672>=</span> hashlib<span style=color:#f92672>.</span>md5(bytes(vm<span style=color:#f92672>.</span>pages[page]))<span style=color:#f92672>.</span>hexdigest()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        expected <span style=color:#f92672>=</span> (hex(ip), hex(next_ip), <span style=color:#e6db74>&#34; &#34;</span><span style=color:#f92672>.</span>join([<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;r</span><span style=color:#e6db74>{</span>i<span style=color:#e6db74>}</span><span style=color:#e6db74>: </span><span style=color:#e6db74>{</span>hex(regs[i])<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>0x20</span>)]))
+</span></span><span style=display:flex><span>        found <span style=color:#f92672>=</span> (hex(vm<span style=color:#f92672>.</span>ip), hex(vm<span style=color:#f92672>.</span>next_ip), <span style=color:#e6db74>&#34; &#34;</span><span style=color:#f92672>.</span>join([<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;r</span><span style=color:#e6db74>{</span>i<span style=color:#e6db74>}</span><span style=color:#e6db74>: </span><span style=color:#e6db74>{</span>hex(vm<span style=color:#f92672>.</span>regs[i])<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span> <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>0x20</span>)]))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        is_buggy <span style=color:#f92672>|=</span> (expected <span style=color:#f92672>!=</span> found) <span style=color:#f92672>or</span> (bin_pages <span style=color:#f92672>!=</span> vm_pages)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> is_buggy:
+</span></span><span style=display:flex><span>            print(<span style=color:#e6db74>&#34;=== BUG FOUND ===&#34;</span>)
+</span></span><span style=display:flex><span>            print(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;after </span><span style=color:#e6db74>{</span>inst_count<span style=color:#e6db74>}</span><span style=color:#e6db74> instructions&#34;</span>)
+</span></span><span style=display:flex><span>            print(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;with opcode </span><span style=color:#e6db74>{</span>vm<span style=color:#f92672>.</span>extract_opcode(ip)<span style=color:#e6db74>:</span><span style=color:#e6db74>x</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>) <span style=color:#75715e># that may fail in the case opcode got overwritten with some garbage</span>
+</span></span><span style=display:flex><span>            print(expected)
+</span></span><span style=display:flex><span>            print(found)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>            print(<span style=color:#e6db74>&#34;=== PAGES ===&#34;</span>)
+</span></span><span style=display:flex><span>            print(bin_pages)
+</span></span><span style=display:flex><span>            print(vm_pages)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> is_buggy <span style=color:#f92672>or</span> vm<span style=color:#f92672>.</span>ret_val <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#34;&#34;&#34; after I finished everything I ran that to make sure diff is none
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>class OpcodeLogger(gdb.Breakpoint):
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>    def stop(self):
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        ip = gdb.parse_and_eval(&#34;*(unsigned int*)($rbx + 0x80)&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        next_ip = gdb.parse_and_eval(&#34;*(unsigned int*)($rbx + 0x84)&#34;)
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        regs = [gdb.parse_and_eval(f&#34;*(unsigned int*)($rbx + {i * 4})&#34;) for i in range(0x20)] 
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        expected = (hex(ip), hex(next_ip), &#34; &#34;.join([f&#34;r</span><span style=color:#e6db74>{i}</span><span style=color:#e6db74>: {hex(regs[i])}&#34; for i in range(0x20)]))
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        found = (hex(vm.ip), hex(vm.next_ip), &#34; &#34;.join([f&#34;r</span><span style=color:#e6db74>{i}</span><span style=color:#e6db74>: {hex(vm.regs[i])}&#34; for i in range(0x20)]))
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        print(hex(ip), hex(next_ip), &#34; &#34;.join([f&#34;r</span><span style=color:#e6db74>{i}</span><span style=color:#e6db74>: {hex(regs[i])}&#34; for i in range(0x20)]))
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        return False
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>gdb<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;set follow-fork-mode child&#34;</span>)
+</span></span><span style=display:flex><span>gdb<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;set logging file trace.log&#34;</span>)
+</span></span><span style=display:flex><span>gdb<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;set logging enabled&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># before an instruction get&#39;s executed</span>
+</span></span><span style=display:flex><span>OpcodeLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x1d0c</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># all places where a new page can be allocated</span>
+</span></span><span style=display:flex><span>NewPageLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x2d50</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>NewPageLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x2dd0</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>NewPageLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x2ed0</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>NewPageLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x3030</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>NewPageLogger(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;*0x555555554000+</span><span style=color:#e6db74>{</span><span style=color:#ae81ff>0x3130</span><span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>gdb<span style=color:#f92672>.</span>execute(<span style=color:#e6db74>&#34;r&#34;</span>)
+</span></span></code></pre></div><p>as you can see I tracked all registers, memory and program counters, that made me able to catch a lot of bugs and achieve and 1:1 validator execution with the native executor&mldr; great</p><p>finally I wrote a <code>disasm_inst</code> method which was a bunch of prints so nothing special about that&mldr; which helped write a tracer and a disassembler.</p><p><em>you can find all the code <a href=TODO>here</a></em></p><h1 id=the-validation>The Validation
+<a href=#the-validation class=anchor>#</a></h1><p>finally I am in the validator, the entry point is at 0x400244 and it calls to two functions:</p><pre tabindex=0><code>400234: ADD r2 0xfa1, r0
+400238: IODispatch(op=r2) // calls exit
+40023C: JMP r31 // ret
+400240: NOP
+
+// r29 = sp
+ENTRY POINT:
+400244: ADD r29 0xffffffe8, r29 // setup a stack frame
+400248: MOVD [r29 + 0x14], r31 // save register
+40024C: MOV r31, 0x400258; JMP 0x400080 // calls to main
+400250: NOP
+400254: MOV r31, 0x400260; JMP 0x400234  // tailcall exits the VM
+400258: OR r4 r2 r0
+40025C: MOVD r31, [r29 + 0x14] // recover saved register
+400260: NOP
+400264: JMP r31
+400268: ADD r29 0x18, r29 // pop stack frame
+40026C: NOP
+</code></pre><p>just remember that jump instructions are delayed with one instruction.</p><p>the main function then takes control, it&rsquo;s also worth noting that:</p><ul><li>r0 is always zero</li><li>calling convention: arguments are passed in order in r4, r5, r6&mldr; and return value in r2</li></ul><pre tabindex=0><code>sub_400080: main
+// prologue
+400080: ADD r29 0xfffffc28, r29
+400084: MOVD [r29 + 0x3d4], r31
+400088: MOVD [r29 + 0x3d0], r18
+40008C: MOVD [r29 + 0x3cc], r17
+400090: MOVD [r29 + 0x3c8], r16
+// read secret_size
+400094: ADD r5, 0x4, r0
+400098: MOV r31, 0x4000a4; JMP 0x400000 // read secret size, 4-bytes
+40009C: ADD r4 0x10, r29
+4000A0: CMP r2 r0; JNE 0x400204 # if read == 0 exit
+4000A4: ADD r2 0x2, r0
+4000A8: MOVB r16, [r29 + 0x11]
+4000AC: NOP
+4000B0: SHL r16 r16 0x8
+4000B4: MOVB r2, [r29 + 0x12]
+4000B8: NOP
+4000BC: SHL r2 r2 0x10
+4000C0: OR r16 r16 r2
+4000C4: MOVB r2, [r29 + 0x10]
+4000C8: NOP
+4000CC: OR r16 r16 r2
+4000D0: MOVB r2, [r29 + 0x13]
+4000D4: NOP
+4000D8: SHL r2 r2 0x18
+4000DC: OR r16 r16 r2 // construct secret size as 4-byte number
+4000E0: LESS r2 r16 0x101
+4000E4: CMP r2, r0; JE 0x400204 // make sure secret size is &lt; 0x100
+4000E8: ADD r2 0x2, r0
+// read secret
+4000EC: OR r5 r16 r0
+4000F0: MOV r31, 0x4000fc; JMP 0x400000 // read the secret
+4000F4: ADD r4 0x14, r29
+4000F8: CMP r2 r0; JNE 0x400204 // if secret not read exit
+// sha256 init context
+4000FC: ADD r2 0x2, r0
+400100: MOV r31, 0x40010c; JMP 0x400500 // sha256 init constants, in r20+0x358
+400104: ADD r4 0x358, r29
+400108: OR r6 r16 r0
+// sha256 buffer secret (if it&#39;s not a full block)
+40010C: ADD r5 0x14, r29
+400110: MOV r31, 0x40011c; JMP 0x400578 // schedule sha256 until a full block
+400114: ADD r4 0x358, r29
+400118: ADD r5 0x4, r0
+// read full file size
+40011C: MOV r31, 0x400128; JMP 0x400000 // read file size, 4-bytes
+400120: ADD r4 0x10, r29
+400124: CMP r2 r0; JNE 0x400204
+400128: ADD r2 0x2, r0
+40012C: MOVB r16, [r29 + 0x11]
+400130: NOP
+400134: SHL r16 r16 0x8
+400138: MOVB r2, [r29 + 0x12]
+40013C: NOP
+400140: SHL r2 r2 0x10
+400144: OR r16 r16 r2
+400148: MOVB r2, [r29 + 0x10]
+40014C: NOP
+400150: OR r16 r16 r2
+400154: MOVB r2, [r29 + 0x13]
+400158: NOP
+40015C: SHL r2 r2 0x18
+400160: OR r16 r16 r2 // construct file size a 4-bytes number BE
+400164: CMP r16, r0; JE 0x4001b4
+400168: ADD r18 0x200, r0
+40016C: CMP r0, r0; JE 0x4001a4
+400170: LESS r2 r16 0x201
+
+// process the file 0x200 bytes per iteration until the end
+// sha256 hash all previously buffered secret + file blocks until you process all the file (one block may remain -- needs padding)
+400174: OR r5 r17 r0
+400178: MOV r31, 0x400184; JMP 0x400000 // read the buffer itself
+40017C: ADD r4 0x114, r29
+400180: CMP r2 r0; JNE 0x400228 // make sure it has been read
+400184: OR r6 r17 r0
+400188: ADD r5 0x114, r29
+40018C: MOV r31, 0x400198; JMP 0x400578 // sha256 hash all blocks, and buffer remaining blocks
+400190: ADD r4 0x358, r29
+400194: SUB r16 r16 r17 // subtract handled size
+400198: CMP r16, r0; JE 0x4001b8 // if none remains exit the loop
+40019C: ADD r5 0x314, r29
+4001A0: LESS r2 r16 0x201
+4001A4: CMP r2 r0; JNE 0x400174 // not a full block remains
+4001A8: OR r17 r16 r0
+4001AC: CMP r0, r0; JE 0x400174 // uncoditional jump back(loop)
+4001B0: OR r17 r18 r0 // r17 = 0x200
+
+// pad and hash remaining data
+4001B4: ADD r5 0x314, r29
+4001B8: MOV r31, 0x4001c4; JMP 0x4006D0 // pad and hash buffered data
+4001BC: ADD r4 0x358, r29
+
+// read prx header from 0x10 to 0x30
+4001C0: ADD r5 0x20, r0
+4001C4: MOV r31, 0x4001d0; JMP 0x400000 // read prx header into r29+0x334
+4001C8: ADD r4 0x334, r29
+4001CC: CMP r2 r0; JNE 0x400230
+// comapres the hash with the header, if they match the validator returns sucess!!
+4001D0: ADD r3 0x314, r29 // final hash
+4001D4: ADD r5 0x334, r29 // prx header [0x10:0x30]
+4001D8: OR r7 r5 r0
+4001DC: MOVB r4, [r3 + 0x0]
+4001E0: MOVB r6, [r5 + 0x0]
+4001E4: NOP
+4001E8: XOR r4 r4 r6
+4001EC: OR r2 r2 r4
+4001F0: AND r2 0xff r2 // r2 |= (r4 ^ r6); r2 &amp;= 0xFF
+4001F4: ADD r3 0x1, r3
+4001F8: CMP r3 r7; JNE 0x4001e0
+4001FC: ADD r5 0x1, r5
+
+// epilogue
+400200: LESS r2 r0 r2 // return comparision result
+400204: MOVD r31, [r29 + 0x3d4]
+400208: MOVD r18, [r29 + 0x3d0]
+40020C: MOVD r17, [r29 + 0x3cc]
+400210: MOVD r16, [r29 + 0x3c8]
+400214: JMP r31
+400218: ADD r29 0x3d8, r29
+</code></pre><p>the main function looks clean, thank god my diassembly is correct, so it first calls to a function <code>0x400500</code>, so I looked at it with the tracer and hence the result</p><pre tabindex=0><code>// sha256 IV
+0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a
+0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+
+400500: MOV r2=0x6a090000, 1778974720
+400504: OR r2=0x6a09e667, r2=0x6a09e667, 0xe667
+400508: MOVD [r4 + 0x0=0x7fffef68], r2=0x6a09e667
+40050C: MOV r2=0xbb670000, 3144089600
+400510: OR r2=0xbb67ae85, r2=0xbb67ae85, 0xae85
+400514: MOVD [r4 + 0x4=0x7fffef6c], r2=0xbb67ae85
+400518: MOV r2=0x3c6e0000, 1013841920
+40051C: OR r2=0x3c6ef372, r2=0x3c6ef372, 0xf372
+400520: MOVD [r4 + 0x8=0x7fffef70], r2=0x3c6ef372
+400524: MOV r2=0xa54f0000, 2773417984
+400528: OR r2=0xa54ff53a, r2=0xa54ff53a, 0xf53a
+40052C: MOVD [r4 + 0xc=0x7fffef74], r2=0xa54ff53a
+400530: MOV r2=0x510e0000, 1359872000
+400534: ADD r2=0x510e527f, 0x527f, r2=0x510e527f
+400538: MOVD [r4 + 0x10=0x7fffef78], r2=0x510e527f
+40053C: MOV r2=0x9b050000, 2600796160
+400540: ADD r2=0x9b05688c, 0x688c, r2=0x9b05688c
+400544: MOVD [r4 + 0x14=0x7fffef7c], r2=0x9b05688c
+400548: MOV r2=0x1f830000, 528678912
+40054C: OR r2=0x1f83d9ab, r2=0x1f83d9ab, 0xd9ab
+400550: MOVD [r4 + 0x18=0x7fffef80], r2=0x1f83d9ab
+400554: MOV r2=0x5be00000, 1541406720
+400558: OR r2=0x5be0cd19, r2=0x5be0cd19, 0xcd19
+40055C: MOVD [r4 + 0x1c=0x7fffef84], r2=0x5be0cd19
+400560: OR r2=0x0 r0=0x0 r0=0x0
+400564: OR r3=0x0 r0=0x0 r0=0x0
+400568: MOVD [r4 + 0x20=0x7fffef88], r2=0x0
+40056C: MOVD [r4 + 0x24=0x7fffef8c], r3=0x0
+400570: JMP r31=0x400108
+400574: MOVD [r4 + 0x68=0x7fffefd0], r0=0x0
+</code></pre><p>ooookay, the function looks like it&rsquo;s initializing some sha256 context based on the IV, values so there is atleast some sort of hashing let&rsquo;s suppose for now it&rsquo;s sha256.</p><p>so the algorithm is rather simple &ndash; it&rsquo;s doing <code>sha256(secret+file)</code>, and because standard sha256 implementations usually process data in blocks of 0x40 bytes with little padding and <code>len * 8</code> postfix at the end, the validator&rsquo;s implementation is seperated to when you have a full 0x40 block buffered <code>0x400578</code>, and when you don&rsquo;t <code>0x4006D0</code></p><p>so I spawned a REPL session testing out our hypothesis</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> data <span style=color:#f92672>=</span> open(<span style=color:#e6db74>&#34;echo.local.prx&#34;</span>, <span style=color:#e6db74>&#34;rb&#34;</span>)<span style=color:#f92672>.</span>read()
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> payload <span style=color:#f92672>=</span> data[<span style=color:#ae81ff>0x30</span>:]
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> target_hash <span style=color:#f92672>=</span> data[<span style=color:#ae81ff>0x10</span>:<span style=color:#ae81ff>0x30</span>]
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> <span style=color:#f92672>import</span> hashlib
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> secret <span style=color:#f92672>=</span> bytes<span style=color:#f92672>.</span>fromhex(<span style=color:#e6db74>&#34;00112233445566778899aabbccddeeff&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> hashlib<span style=color:#f92672>.</span>sha256(secret <span style=color:#f92672>+</span> payload)<span style=color:#f92672>.</span>hexdigest()
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;06b9b4ff772b501ff2a142d77c581a6fa56ac9a3c856f0eec6bc1093a5ac4973&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#f92672>&gt;&gt;&gt;</span> target_hash<span style=color:#f92672>.</span>hex()
+</span></span><span style=display:flex><span><span style=color:#e6db74>&#39;06b9b4ff772b501ff2a142d77c581a6fa56ac9a3c856f0eec6bc1093a5ac4973&#39;</span>
+</span></span></code></pre></div><p>ouuu shit that&rsquo;s it??&mldr; [clears throat] exuce me.</p><h1 id=the-vulnerability>The Vulnerability
+<a href=#the-vulnerability class=anchor>#</a></h1><p><em>by now it may be clear to some of you what the next step should be, I felt lost atp and started brute-forcing the secert :), then I asked the author and because he is a giga-chad he just told me there is a length-extension vulnerability, so I felt stupid for a moment and continued</em></p><p>so the idea here is pretty simple, because whenever a block is hashed, it&rsquo;s hash becomes the IV of the next block, I can take the very last hash(in the prx header) and make it the IV of our own data, I just need to make sure the base data has what ever padding and data sha256 inserts at the end</p><p>but I also need to make sure my data, get&rsquo;s loaded into memory and that I have access to control flow without modifying any file data beyond the offset <code>0x30</code>, so the idea was clear there is a dword at file offset <code>0x8</code> that initializes the <code>IP</code> register I need to point that at the address where my code starts, so that&rsquo;s the control flow problem solved</p><p>but for loading the code my first attempt was to increment the file offset <code>0x5</code> which is a byte indicating the number of sections, so that automatically loads my own section with my code inside. the only issue is.. look at what the section phdr is:</p><pre tabindex=0><code>$ xxd -s 80 ./echo.local.prx | head -n 2
+80a0 0101 3a30 0000 1080 8100 3b30 0a01  ....:0......;0..
+</code></pre><p>the section start would have been at file offset <code>0x101a080</code> with a size of <code>0x818010</code> which would make the file HUGE, although I <a href=TODO>tried</a> to do that and did mange to make it work locally, the file was so large that it passed the remote file size limit :(</p><p>but them I see something I already forgot about:<figure><img src=/assets/l3ak_rev_omega/set_until_eof.png alt=overview></figure></p><p>and the second section falls in that exact case:</p><pre tabindex=0><code>00000040: 7002 0000 0010 4000 ffff ffff a003 0000  p.....@.........
+</code></pre><p>I don&rsquo;t have to introduce a new section, I can just extend the second section(.data) which already is variable length, and point IP in there</p><h1 id=the-light-at-the-end-of-the-tunnel>The Light At The End Of The Tunnel
+<a href=#the-light-at-the-end-of-the-tunnel class=anchor>#</a></h1><p>I first generated a payload that works with the local secret:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#960050;background-color:#1e0010>``</span><span style=color:#f92672>import</span> struct
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>MAGIC <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;PRX</span><span style=color:#ae81ff>\x00\x01</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ip = 0x304e</span>
+</span></span><span style=display:flex><span>SECTION_HEADERS <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x01\x00\x00\xc4\x13\x40\x00\x00\x00\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>HASH <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x9e</span><span style=color:#e6db74>0</span><span style=color:#ae81ff>\xd6\xc4\xda\n\xcf</span><span style=color:#e6db74>P</span><span style=color:#ae81ff>\x9f\xf5\xa5\x08</span><span style=color:#e6db74>S+</span><span style=color:#ae81ff>\xc9</span><span style=color:#e6db74>i</span><span style=color:#ae81ff>\xdc\x90\x86</span><span style=color:#e6db74>`2</span><span style=color:#ae81ff>\n\xa3\xa0\r\xf8\x8a\x92\x80\xba\xd4\x82</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>HEADER <span style=color:#f92672>=</span> MAGIC<span style=color:#f92672>+</span>SECTION_HEADERS<span style=color:#f92672>+</span>HASH
+</span></span><span style=display:flex><span><span style=color:#66d9ef>assert</span> len(HEADER) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x30</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>SECTION_START <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x40\x00\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>PAGE_BASE <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\xb0\x13\x40\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>SECTION_SIZE <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x00\x01\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>EMPTY_DWORD <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x00\x00\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>HEADER <span style=color:#f92672>+=</span> SECTION_START <span style=color:#f92672>+</span> PAGE_BASE <span style=color:#f92672>+</span> SECTION_SIZE <span style=color:#f92672>+</span> EMPTY_DWORD
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>assert</span> len(HEADER) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x40</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>gen_or_reg</span>(dest, lhs, rhs):
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x6</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0xb</span> <span style=color:#f92672>|</span> <span style=color:#ae81ff>0x3b</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> dest <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x11</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> lhs <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x16</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> rhs <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x6</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>&amp;=</span> (<span style=color:#ae81ff>1</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>32</span>) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&lt;I&#34;</span>, opcode)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>gen_shl_cte</span>(dest, lhs, cte):
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x3a</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> (lhs <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>6</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> <span style=color:#ae81ff>6</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0xb</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> (dest <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x11</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> (cte <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x1b</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>&amp;=</span> (<span style=color:#ae81ff>1</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>32</span>) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&lt;I&#34;</span>, opcode)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>gen_add_cte</span>(dest, lhs, cte):
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>=</span> cte <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x3f</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> (dest <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>6</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> <span style=color:#ae81ff>0x35</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0xb</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> ((cte <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>0xb</span>) <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x11</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> (lhs <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x16</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>|=</span> ((cte <span style=color:#f92672>&gt;&gt;</span> <span style=color:#ae81ff>6</span>) <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0x1f</span>) <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>0x1b</span>
+</span></span><span style=display:flex><span>    opcode <span style=color:#f92672>&amp;=</span> (<span style=color:#ae81ff>1</span> <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>32</span>) <span style=color:#f92672>-</span> <span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&lt;I&#34;</span>, opcode)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r5, r0, 0x401</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># SHL r5, r5, 0xC</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r4, r0, 0x3b0 // for remote 0x3b1</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># OR r4, r5, r4</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r2, r0, 0xfa5</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># r2 = open(&#34;/challenge/flag.txt&#34;, 0)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># 0x6-&gt;0x3b|0x3e0000 opcode &gt;&gt; 0x11 &amp; 0x1f OR r4, r2, r0</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># OR r4, r2, r0</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># OR r5, r29, r0</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r6, r0, 0x100</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r2, r0, 0xfa3</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># r2 = read(r4, r5, r6)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r4, r0, 0x1</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># OR r5, r29, r0</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r6, r0, 0x100</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ADD r2, r0, 0xfa4</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># write(r4, r5, r6)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>nop <span style=color:#f92672>=</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&lt;I&#34;</span>, <span style=color:#ae81ff>0x303a</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># for remote this works</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># code = b&#39;/app/flag.txt\x00&#39;</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;/challenge/flag.txt</span><span style=color:#ae81ff>\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>=</span> code<span style=color:#f92672>.</span>ljust(<span style=color:#ae81ff>0x14</span>, <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x00</span><span style=color:#e6db74>&#39;</span>)
+</span></span><span style=display:flex><span><span style=color:#66d9ef>assert</span> len(code) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x14</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_add_cte(<span style=color:#ae81ff>9</span>, <span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>0x401</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_shl_cte(<span style=color:#ae81ff>9</span>, <span style=color:#ae81ff>9</span>, <span style=color:#ae81ff>0xC</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_add_cte(<span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>0x3b0</span>) <span style=color:#75715e># for remote 0x3b1</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_or_reg(<span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>9</span>, <span style=color:#ae81ff>4</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_add_cte(<span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>0xfa5</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x11</span><span style=color:#e6db74>0</span><span style=color:#ae81ff>\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_or_reg(<span style=color:#ae81ff>4</span>, <span style=color:#ae81ff>2</span>, <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_or_reg(<span style=color:#ae81ff>5</span>, <span style=color:#ae81ff>29</span>, <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_add_cte(<span style=color:#ae81ff>6</span>, <span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>0x1000</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\xa3\xa8\x03\xf0</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x11</span><span style=color:#e6db74>0</span><span style=color:#ae81ff>\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&lt;I&#34;</span>, <span style=color:#ae81ff>0x1a901</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_or_reg(<span style=color:#ae81ff>5</span>, <span style=color:#ae81ff>29</span>, <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> gen_add_cte(<span style=color:#ae81ff>6</span>, <span style=color:#ae81ff>0</span>, <span style=color:#ae81ff>0x1000</span>)
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\xa4\xa8\x03\xf0</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x11</span><span style=color:#e6db74>0</span><span style=color:#ae81ff>\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># remove for remote</span>
+</span></span><span style=display:flex><span>code <span style=color:#f92672>+=</span> (<span style=color:#ae81ff>0x100</span> <span style=color:#f92672>-</span> len(code)) <span style=color:#f92672>//</span> <span style=color:#ae81ff>4</span> <span style=color:#f92672>*</span> nop
+</span></span><span style=display:flex><span><span style=color:#66d9ef>assert</span> len(code) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x100</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>open(<span style=color:#e6db74>&#34;./payload.prx&#34;</span>, <span style=color:#e6db74>&#34;wb&#34;</span>)<span style=color:#f92672>.</span>write(HEADER <span style=color:#f92672>+</span> code)
+</span></span></code></pre></div><p>when giving it to the executor, it get&rsquo;s verified because the hash is correct, and then it opens /challenge/flag.txt and prints it&rsquo;s content to stdout, that&rsquo;s what it looks like:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>$ ./executor ./payload.prx
+</span></span><span style=display:flex><span><span style=color:#f92672>[</span>+<span style=color:#f92672>]</span> Verified
+</span></span><span style=display:flex><span>L3AK<span style=color:#f92672>{</span>flag_for_local_testing<span style=color:#f92672>}</span>
+</span></span></code></pre></div><p>perfect, now I can start the remote solver, here is the script for that:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-py data-lang=py><span style=display:flex><span><span style=color:#f92672>import</span> struct
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> sha256
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>secret_size <span style=color:#f92672>=</span> <span style=color:#ae81ff>0xf</span> <span style=color:#75715e># secret_size is variable so fuck around until you find a working exploit</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>remote_data <span style=color:#f92672>=</span> open(<span style=color:#e6db74>&#34;./echo.remote.prx&#34;</span>, <span style=color:#e6db74>&#34;rb&#34;</span>)<span style=color:#f92672>.</span>read()
+</span></span><span style=display:flex><span>payload_data <span style=color:#f92672>=</span> open(<span style=color:#e6db74>&#34;./payload.prx&#34;</span>, <span style=color:#e6db74>&#34;rb&#34;</span>)<span style=color:#f92672>.</span>read()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>remote_header <span style=color:#f92672>=</span> remote_data[<span style=color:#ae81ff>0</span>:<span style=color:#ae81ff>0x10</span>]
+</span></span><span style=display:flex><span>remote_hash <span style=color:#f92672>=</span> remote_data[<span style=color:#ae81ff>0x10</span>:<span style=color:#ae81ff>0x30</span>]
+</span></span><span style=display:flex><span>remote_program <span style=color:#f92672>=</span> remote_data[<span style=color:#ae81ff>0x30</span>:]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>remain <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x40</span> <span style=color:#f92672>-</span> ((len(remote_program) <span style=color:#f92672>+</span> secret_size) <span style=color:#f92672>%</span> <span style=color:#ae81ff>0x40</span>)
+</span></span><span style=display:flex><span>final_payload <span style=color:#f92672>=</span> remote_program <span style=color:#f92672>+</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x80</span><span style=color:#e6db74>&#39;</span> <span style=color:#f92672>+</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x00</span><span style=color:#e6db74>&#39;</span><span style=color:#f92672>*</span>(remain <span style=color:#f92672>-</span> <span style=color:#ae81ff>5</span>) <span style=color:#f92672>+</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&gt;I&#34;</span>, (len(remote_program) <span style=color:#f92672>+</span> secret_size) <span style=color:#f92672>*</span> <span style=color:#ae81ff>8</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>assert</span> (len(final_payload) <span style=color:#f92672>+</span> secret_size) <span style=color:#f92672>%</span> <span style=color:#ae81ff>0x40</span> <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># prints 0x4015f0 </span>
+</span></span><span style=display:flex><span><span style=color:#75715e># print(hex(len(final_payload)))</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>extend <span style=color:#f92672>=</span> payload_data[<span style=color:#ae81ff>0x40</span>:] <span style=color:#75715e># code starts at 0x40</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># print(extend.hex())</span>
+</span></span><span style=display:flex><span>final_payload <span style=color:#f92672>+=</span> extend
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>gen_hash</span>(data, iv):
+</span></span><span style=display:flex><span>    mhash <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;&#39;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>while</span> len(data) <span style=color:#f92672>&gt;=</span> <span style=color:#ae81ff>0x40</span>:
+</span></span><span style=display:flex><span>        block <span style=color:#f92672>=</span> data[:<span style=color:#ae81ff>0x40</span>]
+</span></span><span style=display:flex><span>        mhash <span style=color:#f92672>=</span> sha256<span style=color:#f92672>.</span>generate_hash(block, iv)
+</span></span><span style=display:flex><span>        iv <span style=color:#f92672>=</span> [struct<span style=color:#f92672>.</span>unpack(<span style=color:#e6db74>&#34;&gt;I&#34;</span>, mhash[i<span style=color:#f92672>*</span><span style=color:#ae81ff>4</span>:(i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>)<span style=color:#f92672>*</span><span style=color:#ae81ff>4</span>])[<span style=color:#ae81ff>0</span>] <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>8</span>)]
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> data[<span style=color:#ae81ff>0x40</span>:]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>assert</span> len(data) <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>    data <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x80</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>    data <span style=color:#f92672>+=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x00</span><span style=color:#e6db74>&#39;</span> <span style=color:#f92672>*</span> (<span style=color:#ae81ff>0x3C</span> <span style=color:#f92672>-</span> len(data))
+</span></span><span style=display:flex><span>    data <span style=color:#f92672>+=</span> struct<span style=color:#f92672>.</span>pack(<span style=color:#e6db74>&#34;&gt;I&#34;</span>, ((len(final_payload) <span style=color:#f92672>+</span> secret_size) <span style=color:#f92672>*</span> <span style=color:#ae81ff>8</span>) <span style=color:#f92672>&amp;</span> <span style=color:#ae81ff>0xFFFFFFFF</span>)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>assert</span> len(data) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0x40</span>
+</span></span><span style=display:flex><span>    mhash <span style=color:#f92672>=</span> sha256<span style=color:#f92672>.</span>generate_hash(data, iv)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> mhash
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>iv <span style=color:#f92672>=</span> [struct<span style=color:#f92672>.</span>unpack(<span style=color:#e6db74>&#34;&gt;I&#34;</span>, remote_hash[i<span style=color:#f92672>*</span><span style=color:#ae81ff>4</span>:(i<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>)<span style=color:#f92672>*</span><span style=color:#ae81ff>4</span>])[<span style=color:#ae81ff>0</span>] <span style=color:#66d9ef>for</span> i <span style=color:#f92672>in</span> range(<span style=color:#ae81ff>8</span>)]
+</span></span><span style=display:flex><span>final_hash <span style=color:#f92672>=</span> gen_hash(extend, iv)
+</span></span><span style=display:flex><span>print(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;FINAL HASH: </span><span style=color:#e6db74>{</span>final_hash<span style=color:#f92672>.</span>hex()<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span><span style=color:#75715e># ip = 0x4013c4</span>
+</span></span><span style=display:flex><span>final_header <span style=color:#f92672>=</span> <span style=color:#e6db74>b</span><span style=color:#e6db74>&#39;</span><span style=color:#ae81ff>\x50\x52\x58\x00\x01\x02\x00\x00\xc5\x13\x40\x00\x00\x00\x00\x00</span><span style=color:#e6db74>&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>open(<span style=color:#e6db74>&#34;./final.prx&#34;</span>, <span style=color:#e6db74>&#34;wb&#34;</span>)<span style=color:#f92672>.</span>write(final_header <span style=color:#f92672>+</span> final_hash <span style=color:#f92672>+</span> final_payload)
+</span></span></code></pre></div><p>the implementation of sha256 I found <a href=https://raw.githubusercontent.com/keanemind/python-sha-256/refs/heads/master/sha256.py>here</a> I just removed the padding bs cuz I added it manually</p><p>there was a one offset difference because the local secret is one byte bigger than the remote, but anyways I run the script, base64 encode the payload, send it to the remote server aaaaaaaaaaaaaaaaaaaaaaaaaanddd&mldr;&mldr;..</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-sh data-lang=sh><span style=display:flex><span>$ ncat --ssl omega.instances.ctf.l3ak.team <span style=color:#ae81ff>1337</span>
+</span></span><span style=display:flex><span>Ncat: TIMEOUT.
+</span></span></code></pre></div><p>the infra is down lol, I took so long solving the challenge that even the time for which the infra stays up has fully passed&mldr; skill issue ig lol</p><p>I told the author and he was once again a GIGA-CHAD and gave me the files so I can spin up a local instance and after that&mldr;..</p><p><figure><img src=/assets/l3ak_rev_omega/FINALLY.png alt=overview></figure></p><p>TaADAAAAAAA!!! 🎉🎉🎉🎉🎉🎉🎉</p></main><footer><div class=footer-content><p>Copyright 2026. All rights reserved.</p></div></footer></body></html>
